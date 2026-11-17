@@ -33,8 +33,20 @@ The tools report statistical observations only. Outlier candidates are not
 confirmed data-quality errors, and no domain-specific validity rules or
 automatic cleaning are applied.
 
-Still planned: the Groq integration, the investigation agent, finding
-validation, reports, and the Streamlit workflow.
+Implemented in Task 04:
+
+- A single bounded Groq investigation agent with dynamic selection of the five
+  deterministic tools
+- Explicit JSON tool schemas and an allowlisted local dispatcher
+- Structured investigation state, steps, observations, usage, and completion
+  status
+- Retry-bounded Groq requests with missing-key, rate-limit, and network errors
+
+Configure `GROQ_API_KEY` in the environment to use the agent. Unit tests use
+mocked clients and do not require credentials. The agent does not execute
+model-generated Python or shell commands, modify datasets, or apply cleaning.
+
+Still planned: formal report validation/export and the Streamlit workflow.
 
 ## Setup
 
@@ -46,7 +58,7 @@ python -m pip install -e .
 Copy-Item .env.example .env
 ```
 
-Add a Groq API key to `.env` only when the future Groq integration is implemented.
+Add a Groq API key to `.env` to run the optional investigation agent.
 Do not commit `.env` or real credentials.
 
 ## Current checks
