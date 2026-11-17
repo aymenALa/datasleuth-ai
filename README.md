@@ -46,7 +46,17 @@ Configure `GROQ_API_KEY` in the environment to use the agent. Unit tests use
 mocked clients and do not require credentials. The agent does not execute
 model-generated Python or shell commands, modify datasets, or apply cleaning.
 
-Still planned: formal report validation/export and the Streamlit workflow.
+Implemented in Task 05A:
+
+- Deterministic validation of tool observations and numerical finding claims
+- Evidence-backed finding classifications for measured facts and statistical
+  candidates
+- Conservative cleaning recommendations that never modify the dataset
+- Strict JSON and escaped Markdown investigation reports
+- Explicit outcomes for verified findings, no issues in executed checks,
+  incomplete investigations, and failed investigations
+
+Task 05B and the Streamlit workflow remain unimplemented.
 
 ## Setup
 

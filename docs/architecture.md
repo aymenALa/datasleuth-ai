@@ -32,5 +32,13 @@ usage. CSV cell contents are treated as untrusted data rather than instructions.
 lightweight trace for a future UI. The agent reports incomplete investigations
 explicitly; model interpretations remain separate from tool observations.
 
-Cleaning recommendations, finding validation, formal report validation/export,
-and the Streamlit workflow are not implemented yet.
+Task 05A adds deterministic validation in `validator.py` and bounded report
+generation in `reports.py`. Numerical findings must resolve to metrics from a
+successful executed tool step; model summaries are retained as unverified
+interpretations. Recommendations identify the issue, affected columns,
+supporting evidence, action, and human-review risks. JSON exports reject
+non-finite values and Markdown exports escape untrusted text. Reports
+distinguish issues found, no issue found in executed checks, incomplete
+investigations, and failed investigations.
+
+Task 05B and the Streamlit workflow are not implemented yet.
