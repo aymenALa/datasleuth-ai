@@ -1,0 +1,32 @@
+# Environment and secrets
+.env
+.venv/
+venv/
+
+# Python generated files
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+
+# Test and tool caches
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Build artifacts
+build/
+dist/
+
+# Generated or local datasets
+data/generated/
+generated/
+*.parquet
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

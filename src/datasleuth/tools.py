@@ -1,0 +1,1 @@
+"""Predefined analytical tools placeholder."""

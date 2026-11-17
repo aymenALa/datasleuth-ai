@@ -1,0 +1,1 @@
+"""Investigation report functionality placeholder."""
