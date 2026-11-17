@@ -22,8 +22,19 @@ Header-only CSV files are intentionally accepted: they produce a valid
 `DatasetContext` with zero rows and the declared columns. Empty or
 whitespace-only files are rejected.
 
-Still planned: data-quality analysis tools, the Groq integration, the
-investigation agent, finding validation, reports, and the Streamlit workflow.
+Implemented in Task 03:
+
+- Deterministic dataset profiling, missing-value analysis, duplicate detection,
+  column inspection, and IQR outlier candidate detection
+- Compact `ToolResult` outputs with bounded evidence and JSON-compatible values
+- Read-only analysis that never modifies the input DataFrame
+
+The tools report statistical observations only. Outlier candidates are not
+confirmed data-quality errors, and no domain-specific validity rules or
+automatic cleaning are applied.
+
+Still planned: the Groq integration, the investigation agent, finding
+validation, reports, and the Streamlit workflow.
 
 ## Setup
 
