@@ -3,3 +3,4 @@ streamlit
 groq
 python-dotenv
 pytest
+plotly

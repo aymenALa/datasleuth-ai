@@ -12,6 +12,7 @@ from datasleuth.agent import run_investigation
 from datasleuth.data_loader import CSVLoadError, load_csv
 from datasleuth.models import DatasetContext, InvestigationResult
 from datasleuth.reports import build_report, report_to_json, report_to_markdown
+from datasleuth.visualizations import dataset_composition_figure, issue_breakdown_figure, issue_counts
 
 
 DEFAULT_GOAL = "Identify the most important data-quality risks and explain the evidence."
@@ -74,11 +75,18 @@ def _render_styles() -> None:
     st.markdown(
         """
         <style>
-        .block-container { max-width: 1180px; padding-top: 2.2rem; }
-        .ds-kicker { color: #53708a; font-size: 0.78rem; font-weight: 700;
+        .stApp { background: #0b1324; color: #dbe8f5; }
+        .block-container { max-width: 1240px; padding-top: 1.4rem; padding-bottom: 2rem; }
+        .ds-kicker { color: #79b6dd; font-size: 0.75rem; font-weight: 700;
                      letter-spacing: .12em; text-transform: uppercase; }
-        .ds-subtitle { color: #5f6f7d; font-size: 1.05rem; margin-top: -.6rem; }
-        [data-testid="stMetricValue"] { color: #1e4f78; }
+        .ds-subtitle { color: #9eb2c8; font-size: 1rem; margin-top: -.6rem; }
+        h1, h2, h3 { color: #f1f6fb; letter-spacing: -.02em; }
+        [data-testid="stMetric"] { background: #111f35; border: 1px solid #203652;
+          border-radius: 12px; padding: .75rem 1rem; }
+        [data-testid="stMetricLabel"] { color: #9eb2c8; }
+        [data-testid="stMetricValue"] { color: #e8f3ff; }
+        div[data-testid="stExpander"] { background: #101d31; border-color: #203652; }
+        .stButton > button[kind="primary"] { background: #2d739f; border-color: #69a6d1; }
         </style>
         """,
         unsafe_allow_html=True,
@@ -133,6 +141,27 @@ def _render_controls(context: DatasetContext) -> None:
             return
         with st.spinner("Running bounded investigation…"):
             _execute_investigation(context, goal.strip())
+
+
+def _render_visualizations(context: DatasetContext) -> None:
+    """Render deterministic charts without invoking the agent or changing data."""
+
+    st.subheader("Data Quality Visualizations")
+    chart_columns = st.columns(2)
+    with chart_columns[0]:
+        st.plotly_chart(dataset_composition_figure(context), width="stretch", theme=None)
+    with chart_columns[1]:
+        counts = issue_counts(context)
+        figure = issue_breakdown_figure(counts)
+        if figure is not None:
+            st.plotly_chart(figure, width="stretch", theme=None)
+        elif sum(counts.values()) == 0:
+            st.info("No missing cells or redundant duplicate rows detected.")
+        else:
+            label, value = next((label, value) for label, value in counts.items() if value > 0)
+            st.metric(label, f"{value:,}")
+            st.caption("Missing cells and duplicate rows are different units and may overlap.")
+    st.caption("Charts use deterministic Pandas metrics. Missing cells and duplicate rows are different units and may overlap; outlier candidates are excluded.")
 
 
 def _status_message(result: InvestigationResult) -> None:
@@ -241,6 +270,7 @@ def main() -> None:
     if context is None:
         return
     _render_overview(context)
+    _render_visualizations(context)
     _render_controls(context)
     result = st.session_state["investigation_result"]
     report = st.session_state["report"]
@@ -248,9 +278,9 @@ def main() -> None:
         return
     st.divider()
     _status_message(result)
-    _render_trace(result)
     _render_findings(report)
     _render_recommendations(report)
+    _render_trace(result)
     if report.get("warnings") or report.get("validation_errors"):
         st.subheader("Warnings and limitations")
         for message in report.get("warnings", []) + report.get("validation_errors", []) + report.get("limitations", []):

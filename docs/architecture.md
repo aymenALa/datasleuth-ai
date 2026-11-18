@@ -14,6 +14,8 @@
 7. `reports.py` will format findings and cleaning recommendations.
 8. `models.py` will hold shared domain models, where needed.
 9. `config.py` will centralize environment-backed configuration.
+10. `visualizations.py` prepares deterministic Plotly figures from Pandas and
+    existing tool metrics; it has no Groq or chart-selection-agent dependency.
 
 Tool functions operate on the validated `DatasetContext` and return compact
 `ToolResult` objects suitable for future agent tool calling. Their outputs use
@@ -51,3 +53,11 @@ Markdown renderer escapes untrusted text.
 
 Long-term storage, authentication, deployment, automatic cleaning, and further
 UI work are not implemented.
+
+Task 06 adds deterministic Plotly visualizations. Task 07 refines them into a
+dataset-composition bar chart grouped by existing Pandas dtypes and a
+conditional issue donut. The donut appears only when both missing-cell and
+duplicate-row counts are positive; otherwise the interface shows a metric or an
+explicit zero-issues message. These counts are different units and may overlap,
+so the chart is not a share of dirty rows and excludes statistical outlier
+candidates. No date parsing or AI chart selection is performed.

@@ -33,6 +33,15 @@ def test_successful_csv_upload_renders_bounded_overview():
     assert any("inferred by Pandas" in item.value for item in at.caption)
 
 
+def test_successful_csv_upload_renders_deterministic_visualizations_without_agent():
+    at = AppTest.from_file(str(APP_PATH)).run()
+    at.file_uploader[0].set_value(("quality.csv", b"name,score\nAda,10\nGrace,20\n", "text/csv"))
+    at.run()
+
+    assert any("Data Quality Visualizations" in item.value for item in at.subheader)
+    assert any("No missing cells" in item.value for item in at.info)
+
+
 def test_invalid_csv_upload_displays_readable_error():
     at = AppTest.from_file(str(APP_PATH)).run()
     at.file_uploader[0].set_value(("bad.csv", b"name,name\nAda,1\n", "text/csv"))

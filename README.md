@@ -68,6 +68,26 @@ Implemented in Task 05B:
 
 The interface never modifies the source CSV and does not execute cleaning.
 
+Implemented in Task 06:
+
+- Deterministic Plotly dataset-composition bar chart grouped by recognized
+  Pandas types: numeric, text/categorical, boolean, date/time, and other
+- Conditional detected-issue donut chart using missing-cell and redundant-row
+  counts; a single positive category is shown as a metric instead of a
+  misleading one-slice pie
+- Chart generation uses local Pandas/tool metrics only and makes no AI calls
+
+The issue chart combines different units and does not represent a percentage of
+dirty rows. Missing cells and duplicate rows may overlap. Outlier candidates are
+not included, and no chart implies a domain-specific data-quality judgment.
+
+Implemented in Task 07:
+
+- Refined the composition and issue charts for the dark dashboard theme
+- Composition uses existing Pandas dtypes only; it does not speculate by parsing
+  date-like values
+- Issue donut labels are concise, use a clean legend, and display exact counts
+
 ## Setup
 
 ```powershell
