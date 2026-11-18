@@ -24,6 +24,16 @@ def outlier_step():
     )
 
 
+def duplicate_step(status="success", count=0):
+    return InvestigationStep(
+        "detect_duplicates", {},
+        {"tool_name": "detect_duplicates", "status": status,
+         "metrics": {"duplicate_row_count": count, "duplicate_percentage": 0.0},
+         "parameters": {"columns": ["value"]}, "evidence": [], "warnings": []},
+        "duplicate-call",
+    )
+
+
 def test_supported_numerical_finding_is_validated_against_tool_metric():
     result = validate_finding(
         {"tool_name": "detect_outliers", "metric_path": "outlier_candidate_count",
@@ -81,3 +91,80 @@ def test_incomplete_and_failed_investigations_are_distinguished():
     assert incomplete["status"] == "incomplete"
     assert failed["status"] == "failed"
     assert failed["warnings"] == []
+
+
+def test_successful_duplicate_check_with_no_duplicates_is_validated_cleanly():
+    validation = validate_investigation(investigation(steps=[duplicate_step()]))
+
+    assert validation["status"] == "validated"
+    assert validation["findings"] == []
+    assert not any("did not produce" in warning for warning in validation["warnings"])
+
+
+def test_successful_duplicate_check_with_duplicates_produces_a_finding():
+    validation = validate_investigation(investigation(steps=[duplicate_step(count=2)]))
+
+    assert validation["status"] == "validated"
+    assert validation["findings"][0]["metric_path"] == "duplicate_row_count"
+    assert validation["findings"][0]["value"] == 2
+
+
+def test_failed_duplicate_check_makes_coverage_incomplete_but_preserves_findings():
+    validation = validate_investigation(
+        investigation(status="complete", steps=[outlier_step(), duplicate_step(status="error")])
+    )
+
+    assert validation["status"] == "incomplete"
+    assert any(finding["tool_name"] == "detect_outliers" for finding in validation["findings"])
+    assert any("detect_duplicates failed" in warning for warning in validation["warnings"])
+    assert not any("No issue found" in warning for warning in validation["warnings"])
+
+
+def test_missing_required_duplicate_observation_makes_coverage_incomplete():
+    current = investigation(status="complete", steps=[outlier_step()])
+    current.required_tools = ["detect_duplicates"]
+
+    validation = validate_investigation(current)
+
+    assert validation["status"] == "incomplete"
+    assert any("Required tool detect_duplicates" in warning for warning in validation["warnings"])
+    assert any(finding["tool_name"] == "detect_outliers" for finding in validation["findings"])
+
+
+def test_baseline_coverage_reports_zero_missing_and_duplicate_checks():
+    current = investigation(steps=[
+        InvestigationStep(
+            "analyze_missing_values", {},
+            {"tool_name": "analyze_missing_values", "status": "success", "metrics": {"missing_counts": {"a": 0, "b": 0}}}, "baseline-2"
+        ),
+        InvestigationStep(
+            "detect_duplicates", {"columns": ["a", "b"]},
+            {"tool_name": "detect_duplicates", "status": "success", "metrics": {"duplicate_row_count": 0}}, "baseline-3"
+        ),
+    ])
+    current.required_tools = ["analyze_missing_values", "detect_duplicates"]
+
+    validation = validate_investigation(current)
+
+    assert validation["check_coverage"] == [
+        {"tool_name": "analyze_missing_values", "status": "succeeded", "missing_value_count": 0},
+        {"tool_name": "detect_duplicates", "status": "succeeded", "duplicate_row_count": 0},
+    ]
+    assert "Missing-value check completed: 0 missing values." in validation["warnings"]
+    assert "Exact-duplicate check completed: 0 redundant rows." in validation["warnings"]
+
+
+def test_failed_baseline_check_is_failed_not_successful_coverage():
+    current = investigation(steps=[
+        InvestigationStep(
+            "detect_duplicates", {"columns": None},
+            {"tool_name": "detect_duplicates", "status": "error", "error": "failed"}, "baseline-3"
+        ),
+    ])
+    current.required_tools = ["profile_dataset", "analyze_missing_values", "detect_duplicates"]
+
+    validation = validate_investigation(current)
+
+    assert validation["status"] == "incomplete"
+    statuses = {item["tool_name"]: item["status"] for item in validation["check_coverage"]}
+    assert statuses == {"profile_dataset": "not_executed", "analyze_missing_values": "not_executed", "detect_duplicates": "failed"}

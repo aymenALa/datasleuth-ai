@@ -145,6 +145,24 @@ def test_insufficient_evidence_and_clean_datasets_are_distinguished():
     assert clean["cleaning_recommendations"] == []
 
 
+def test_failed_duplicate_check_report_is_incomplete_not_clean():
+    failed_duplicate = InvestigationResult(
+        "d1", "Check duplicates", "complete", "The duplicate check failed",
+        steps=[InvestigationStep(
+            "detect_duplicates", {},
+            {"tool_name": "detect_duplicates", "status": "error", "error": "invalid arguments"},
+            "duplicate-call",
+        )],
+    )
+
+    report = build_report(context(), failed_duplicate)
+
+    assert report["completion_status"] == "incomplete"
+    assert report["outcome"] == "investigation_incomplete"
+    assert report["verified_findings"] == []
+    assert report["cleaning_recommendations"][0]["issue"] == "Insufficient investigation evidence"
+
+
 def test_json_and_markdown_exports_are_strict_and_escape_untrusted_text():
     malicious_context = DatasetContext(
         "d1", "evil`name[1].csv<script>", pd.DataFrame({"value": [1]}), 1, 1, ["value"]

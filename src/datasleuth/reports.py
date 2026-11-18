@@ -98,6 +98,8 @@ def build_report(context: DatasetContext, investigation: InvestigationResult) ->
         outcome = "investigation_failed"
     elif validation["status"] == "incomplete":
         outcome = "investigation_incomplete"
+    elif validation["status"] == "invalid":
+        outcome = "investigation_invalid"
     elif validation["findings"]:
         outcome = "issues_found"
     else:
@@ -116,6 +118,7 @@ def build_report(context: DatasetContext, investigation: InvestigationResult) ->
         "verified_findings": validation["findings"],
         "cleaning_recommendations": cleaning_recommendations(validation),
         "investigation_trace": validation["trace"],
+        "check_coverage": validation["check_coverage"],
         "warnings": validation["warnings"],
         "validation_errors": validation["errors"],
         "limitations": [
@@ -124,7 +127,7 @@ def build_report(context: DatasetContext, investigation: InvestigationResult) ->
             "Statistical outlier candidates are not confirmed data-quality errors.",
         ],
         "token_usage": validation["usage"],
-        "model_interpretation": investigation.model_response,
+        "model_interpretation": investigation.model_response or investigation.summary,
         "error": investigation.error,
     }
 
@@ -154,6 +157,14 @@ def report_to_markdown(report: dict[str, Any]) -> str:
         lines.append("No verified issue findings were produced from the executed checks.")
     for finding in findings:
         lines.append(f"- **{_escape(finding['title'])}** ({_escape(finding['classification'])}); evidence: `{_escape(finding['metric_path'])}` = `{_escape(str(finding['value']))}`")
+    lines.extend(["", "## Check coverage"])
+    for check in report.get("check_coverage", []):
+        details = ""
+        if "missing_value_count" in check:
+            details = f"; missing values: {check['missing_value_count']}"
+        if "duplicate_row_count" in check:
+            details = f"; redundant rows: {check['duplicate_row_count']}"
+        lines.append(f"- {_escape(check['tool_name'])}: **{_escape(check['status'])}**{details}")
     lines.extend(["", "## Cleaning recommendations"])
     recommendations = report.get("cleaning_recommendations", [])
     if not recommendations:

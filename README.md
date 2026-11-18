@@ -56,7 +56,17 @@ Implemented in Task 05A:
 - Explicit outcomes for verified findings, no issues in executed checks,
   incomplete investigations, and failed investigations
 
-Task 05B and the Streamlit workflow remain unimplemented.
+Implemented in Task 05B:
+
+- Local Streamlit interface for CSV upload, bounded preview, and Pandas-inferred
+  schema overview
+- Explicit investigation controls with session-state persistence and stale
+  result invalidation when the uploaded dataset changes
+- Readable investigation trace, verified findings, recommendations, warnings,
+  and unverified model interpretation sections
+- Strict JSON and Markdown report downloads
+
+The interface never modifies the source CSV and does not execute cleaning.
 
 ## Setup
 
@@ -71,6 +81,17 @@ Copy-Item .env.example .env
 Add a Groq API key to `.env` to run the optional investigation agent.
 Do not commit `.env` or real credentials.
 
+## Run the Streamlit application
+
+```powershell
+streamlit run app.py
+```
+
+Upload a CSV, review the bounded dataset overview, enter an investigation goal,
+and click **Run investigation**. Groq is called only after that explicit action.
+The app requires `GROQ_API_KEY` in the process environment and never displays
+the credential.
+
 ## Current checks
 
 ```powershell
@@ -84,4 +105,4 @@ pytest
 - Deterministic analytical tools
 - Verified findings and explainable cleaning recommendations
 - Optional Groq-assisted investigation coordination
-- Streamlit workflow and focused Pytest coverage
+- Streamlit workflow refinements and focused Pytest coverage

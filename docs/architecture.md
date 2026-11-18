@@ -2,7 +2,8 @@
 
 ## V1 outline
 
-1. `app.py` will provide the Streamlit interface.
+1. `app.py` provides the local Streamlit interface for upload, overview,
+   explicit investigation, trace, findings, recommendations, and report export.
 2. `data_loader.py` will load CSV input into Pandas structures.
 3. `tools.py` contains five predefined, deterministic analyses: dataset
    profiling, missing-value analysis, duplicate detection, column inspection,
@@ -41,4 +42,12 @@ non-finite values and Markdown exports escape untrusted text. Reports
 distinguish issues found, no issue found in executed checks, incomplete
 investigations, and failed investigations.
 
-Task 05B and the Streamlit workflow are not implemented yet.
+The Streamlit layer stores only the current dataset context, content signature,
+investigation result, and generated report in `st.session_state`. Uploading a
+different byte signature clears stale results. It invokes the existing agent
+only from the explicit Run Investigation button, sends no full dataset to
+Groq, and uses bounded previews/evidence. Downloaded JSON is strict and the
+Markdown renderer escapes untrusted text.
+
+Long-term storage, authentication, deployment, automatic cleaning, and further
+UI work are not implemented.

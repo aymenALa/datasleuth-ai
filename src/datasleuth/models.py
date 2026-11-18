@@ -69,6 +69,8 @@ class InvestigationState:
     turns: int = 0
     tool_calls: int = 0
     usage: dict[str, int] = field(default_factory=dict)
+    required_tools: list[str] = field(default_factory=list)
+    baseline_tool_calls: int = 0
 
 
 @dataclass
@@ -84,6 +86,8 @@ class InvestigationResult:
     model_response: str | None = None
     error: str | None = None
     usage: dict[str, int] = field(default_factory=dict)
+    required_tools: list[str] = field(default_factory=list)
+    baseline_tool_calls: int = 0
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -104,4 +108,6 @@ class InvestigationResult:
             "model_response": self.model_response,
             "error": self.error,
             "usage": self.usage,
+            "required_tools": self.required_tools,
+            "baseline_tool_calls": self.baseline_tool_calls,
         }

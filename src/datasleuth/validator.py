@@ -63,6 +63,8 @@ def validate_investigation(investigation: InvestigationResult) -> dict[str, Any]
     warnings: list[str] = []
     findings: list[dict[str, Any]] = []
     successful: dict[str, dict[str, Any]] = {}
+    failed_tools: list[str] = []
+    skipped_tools: list[str] = []
 
     for step in investigation.steps:
         result = step.result
@@ -73,9 +75,24 @@ def validate_investigation(investigation: InvestigationResult) -> dict[str, Any]
             errors.append(f"Tool result mismatch for call {step.call_id}")
             continue
         if result.get("status") != "success":
-            warnings.append(f"Tool {step.tool_name} did not produce a successful observation")
+            if result.get("status") == "error":
+                failed_tools.append(step.tool_name)
+            elif result.get("status") == "skipped":
+                skipped_tools.append(step.tool_name)
             continue
         successful[step.tool_name] = result
+
+    missing_required = [
+        tool_name for tool_name in investigation.required_tools
+        if tool_name not in {step.tool_name for step in investigation.steps}
+    ]
+    for tool_name in dict.fromkeys(failed_tools):
+        warnings.append(f"Tool {tool_name} failed; its results were excluded from verified findings.")
+    for tool_name in dict.fromkeys(skipped_tools):
+        if tool_name not in successful:
+            warnings.append(f"Tool {tool_name} was skipped and has no successful observation.")
+    for tool_name in missing_required:
+        warnings.append(f"Required tool {tool_name} has no recorded observation.")
 
     for tool_name, result in successful.items():
         findings.extend(_findings_from_tool(tool_name, result))
@@ -84,15 +101,25 @@ def validate_investigation(investigation: InvestigationResult) -> dict[str, Any]
         warnings.append("Model summary is an interpretation and was not used as numerical evidence.")
     if investigation.status == "error":
         status = "failed"
-    elif investigation.status == "incomplete":
+    elif investigation.status == "incomplete" or failed_tools or missing_required:
         status = "incomplete"
-        warnings.append("Investigation was incomplete; findings cover executed checks only.")
+        if investigation.status != "incomplete":
+            warnings.append("Investigation coverage is incomplete; findings cover successful checks only.")
     elif errors:
         status = "invalid"
     else:
         status = "validated"
     if not findings and status == "validated":
         warnings.append("No issue found in the executed checks; this does not establish that the entire dataset is clean.")
+
+    check_coverage = _check_coverage(investigation, successful, failed_tools, skipped_tools)
+    for check in check_coverage:
+        if check["tool_name"] == "analyze_missing_values" and check["status"] == "succeeded":
+            if check.get("missing_value_count") == 0:
+                warnings.append("Missing-value check completed: 0 missing values.")
+        if check["tool_name"] == "detect_duplicates" and check["status"] == "succeeded":
+            if check.get("duplicate_row_count") == 0:
+                warnings.append("Exact-duplicate check completed: 0 redundant rows.")
 
     return {
         "status": status,
@@ -103,7 +130,36 @@ def validate_investigation(investigation: InvestigationResult) -> dict[str, Any]
         "errors": errors,
         "trace": _bounded_trace(investigation),
         "usage": dict(investigation.usage),
+        "check_coverage": check_coverage,
     }
+
+
+def _check_coverage(
+    investigation: InvestigationResult,
+    successful: dict[str, dict[str, Any]],
+    failed_tools: list[str],
+    skipped_tools: list[str],
+) -> list[dict[str, Any]]:
+    """Return one bounded status record for every required baseline check."""
+
+    coverage = []
+    for tool_name in investigation.required_tools:
+        if tool_name in successful:
+            status = "succeeded"
+            metrics = successful[tool_name].get("metrics", {})
+            record = {"tool_name": tool_name, "status": status}
+            if tool_name == "analyze_missing_values":
+                record["missing_value_count"] = int(metrics.get("missing_value_count", sum(metrics.get("missing_counts", {}).values())))
+            if tool_name == "detect_duplicates":
+                record["duplicate_row_count"] = int(metrics.get("duplicate_row_count", 0))
+        elif tool_name in failed_tools:
+            record = {"tool_name": tool_name, "status": "failed"}
+        elif tool_name in skipped_tools:
+            record = {"tool_name": tool_name, "status": "skipped"}
+        else:
+            record = {"tool_name": tool_name, "status": "not_executed"}
+        coverage.append(record)
+    return coverage
 
 
 def _findings_from_tool(tool_name: str, result: dict[str, Any]) -> list[dict[str, Any]]:
