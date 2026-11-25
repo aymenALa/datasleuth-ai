@@ -1,18 +1,44 @@
-"""Streamlit interface for the DataSleuth AI investigation workflow."""
+"""Streamlit interface and workspace shell for DataSleuth AI."""
 
 from __future__ import annotations
 
 import hashlib
+import html
 from io import BytesIO
 from typing import Any
 
+import importlib
 import streamlit as st
+
+import datasleuth.ui.theme
+import datasleuth.ui.navigation
+import datasleuth.ui.views
+import datasleuth.ui.views.dataset
+import datasleuth.ui.views.overview
+import datasleuth.ui.views.investigation
+
+importlib.reload(datasleuth.ui.theme)
+importlib.reload(datasleuth.ui.navigation)
+importlib.reload(datasleuth.ui.views)
+importlib.reload(datasleuth.ui.views.dataset)
+importlib.reload(datasleuth.ui.views.overview)
+importlib.reload(datasleuth.ui.views.investigation)
 
 from datasleuth.agent import run_investigation
 from datasleuth.data_loader import CSVLoadError, load_csv
 from datasleuth.models import DatasetContext, InvestigationResult
-from datasleuth.reports import build_report, report_to_json, report_to_markdown
-from datasleuth.visualizations import dataset_composition_figure, issue_breakdown_figure, issue_counts
+from datasleuth.reports import build_report
+from datasleuth.ui.theme import inject_custom_styles
+from datasleuth.ui.navigation import render_sidebar, get_factual_status
+from datasleuth.ui.views import (
+    render_overview_view,
+    render_dataset_view,
+    render_investigation_view,
+    render_findings_view,
+    render_recommendations_view,
+    render_trace_view,
+    render_reports_view,
+)
 
 
 DEFAULT_GOAL = "Identify the most important data-quality risks and explain the evidence."
@@ -27,6 +53,7 @@ def _initialize_state() -> None:
         "investigation_goal": DEFAULT_GOAL,
         "investigation_result": None,
         "report": None,
+        "active_view": "Overview",
     }
     for key, value in defaults.items():
         st.session_state.setdefault(key, value)
@@ -71,221 +98,178 @@ def _execute_investigation(
     return result
 
 
-def _render_styles() -> None:
+def _render_top_header(context: DatasetContext | None) -> None:
+    """Render the top workspace header with clean inline status badge."""
+    status_text, status_color = get_factual_status()
     st.markdown(
-        """
-        <style>
-        .stApp { background: #0b1324; color: #dbe8f5; }
-        .block-container { max-width: 1240px; padding-top: 1.4rem; padding-bottom: 2rem; }
-        .ds-kicker { color: #79b6dd; font-size: 0.75rem; font-weight: 700;
-                     letter-spacing: .12em; text-transform: uppercase; }
-        .ds-subtitle { color: #9eb2c8; font-size: 1rem; margin-top: -.6rem; }
-        h1, h2, h3 { color: #f1f6fb; letter-spacing: -.02em; }
-        [data-testid="stMetric"] { background: #111f35; border: 1px solid #203652;
-          border-radius: 12px; padding: .75rem 1rem; }
-        [data-testid="stMetricLabel"] { color: #9eb2c8; }
-        [data-testid="stMetricValue"] { color: #e8f3ff; }
-        div[data-testid="stExpander"] { background: #101d31; border-color: #203652; }
-        .stButton > button[kind="primary"] { background: #2d739f; border-color: #69a6d1; }
-        </style>
+        f"""
+        <div style="margin-top: 0.25rem; margin-bottom: 0.35rem;">
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:0.25rem;">
+                <span class="ds-kicker" style="margin-bottom:0;">Autonomous Data Quality Intelligence</span>
+                <span class="ds-status-pill" style="border: 1px solid {status_color}45; background: {status_color}14; color: {status_color}; font-size:0.72rem; padding:3px 9px; line-height:1.2;">
+                    <span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:{status_color};"></span>
+                    {html.escape(status_text)}
+                </span>
+            </div>
+        </div>
         """,
         unsafe_allow_html=True,
     )
-
-
-def _render_header() -> None:
-    st.markdown('<div class="ds-kicker">Autonomous data quality investigation</div>', unsafe_allow_html=True)
     st.title("DataSleuth AI")
     st.markdown(
-        '<div class="ds-subtitle">Evidence-first investigation for CSV datasets — no automatic cleaning.</div>',
+        '<div class="ds-subtitle">Evidence-first autonomous data quality investigation for CSV datasets — no automatic cleaning.</div>',
         unsafe_allow_html=True,
     )
 
 
-def _render_upload() -> None:
-    st.subheader("1. Load a dataset")
-    uploaded_file = st.file_uploader("Upload a CSV file", type=["csv"], label_visibility="collapsed")
-    if uploaded_file is not None:
-        _load_uploaded_dataset(uploaded_file)
-    if st.session_state["upload_error"]:
-        st.error(f"CSV could not be loaded: {st.session_state['upload_error']}")
-    elif st.session_state["dataset_context"] is None:
-        st.info("Upload a UTF-8 CSV to begin. The existing ingestion limits are enforced.")
+def _render_upload_section(context: DatasetContext | None, active_view: str = "Overview") -> None:
+    """Render single authoritative CSV uploader: onboarding guide on Overview, compact controls elsewhere."""
+    if context is None:
+        if active_view == "Overview":
+            st.markdown(
+                """
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:14px; margin: 0.5rem 0 1.25rem 0;">
+                    <div class="ds-card" style="margin-bottom:0; padding:18px;">
+                        <div style="font-size:0.75rem; font-weight:700; color:#38BDF8; text-transform:uppercase; letter-spacing:0.06em; margin-bottom:6px;">Step 1</div>
+                        <div style="font-weight:600; color:#F1F5F9; font-size:1.02rem; margin-bottom:4px;">Upload a CSV</div>
+                        <div style="font-size:0.84rem; color:#94A3B8; line-height:1.4;">Select or drop a UTF-8 CSV dataset with headers. Enforces strict size and shape bounds.</div>
+                    </div>
+                    <div class="ds-card" style="margin-bottom:0; padding:18px;">
+                        <div style="font-size:0.75rem; font-weight:700; color:#818CF8; text-transform:uppercase; letter-spacing:0.06em; margin-bottom:6px;">Step 2</div>
+                        <div style="font-weight:600; color:#F1F5F9; font-size:1.02rem; margin-bottom:4px;">Explore Dataset Quality</div>
+                        <div style="font-size:0.84rem; color:#94A3B8; line-height:1.4;">Review inferred schemas, missing-cell rates, duplicate groups, and deterministic distributions.</div>
+                    </div>
+                    <div class="ds-card" style="margin-bottom:0; padding:18px;">
+                        <div style="font-size:0.75rem; font-weight:700; color:#34D399; text-transform:uppercase; letter-spacing:0.06em; margin-bottom:6px;">Step 3</div>
+                        <div style="font-weight:600; color:#F1F5F9; font-size:1.02rem; margin-bottom:4px;">Run an AI Investigation</div>
+                        <div style="font-size:0.84rem; color:#94A3B8; line-height:1.4;">Autonomous read-only agent executes allowlisted inspection tools to verify data quality facts.</div>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
+            st.subheader("Load a dataset")
+            uploaded_file = st.file_uploader(
+                "Upload a CSV file",
+                type=["csv"],
+                key="csv_uploader",
+                label_visibility="collapsed",
+            )
+            if uploaded_file is not None:
+                _load_uploaded_dataset(uploaded_file)
 
-def _render_overview(context: DatasetContext) -> None:
-    st.subheader("2. Dataset overview")
-    metric_columns = st.columns(3)
-    metric_columns[0].metric("Rows", f"{len(context.dataframe):,}")
-    metric_columns[1].metric("Columns", f"{len(context.dataframe.columns):,}")
-    metric_columns[2].metric("File", context.filename)
-    st.caption("Column types below are inferred by Pandas during CSV ingestion.")
-    type_table = [{"column": str(column), "inferred_type": str(context.dataframe[column].dtype)} for column in context.dataframe.columns]
-    st.dataframe(type_table, width="stretch", hide_index=True)
-    st.caption(f"Preview — first {min(_PREVIEW_ROWS, len(context.dataframe))} rows")
-    st.dataframe(context.dataframe.head(_PREVIEW_ROWS), width="stretch", hide_index=True)
-    for warning in context.warnings:
-        st.warning(warning)
-
-
-def _render_controls(context: DatasetContext) -> None:
-    st.subheader("3. Investigation")
-    goal = st.text_area(
-        "Investigation goal",
-        key="investigation_goal",
-        help="The goal guides tool selection; the full CSV is never sent to Groq.",
-    )
-    if st.button("Run investigation", type="primary", width="stretch"):
-        if not goal.strip():
-            st.warning("Enter an investigation goal before running.")
-            return
-        with st.spinner("Running bounded investigation…"):
-            _execute_investigation(context, goal.strip())
-
-
-def _render_visualizations(context: DatasetContext) -> None:
-    """Render deterministic charts without invoking the agent or changing data."""
-
-    st.subheader("Data Quality Visualizations")
-    chart_columns = st.columns(2)
-    with chart_columns[0]:
-        st.plotly_chart(dataset_composition_figure(context), width="stretch", theme=None)
-    with chart_columns[1]:
-        counts = issue_counts(context)
-        figure = issue_breakdown_figure(counts)
-        if figure is not None:
-            st.plotly_chart(figure, width="stretch", theme=None)
-        elif sum(counts.values()) == 0:
-            st.info("No missing cells or redundant duplicate rows detected.")
-        else:
-            label, value = next((label, value) for label, value in counts.items() if value > 0)
-            st.metric(label, f"{value:,}")
-            st.caption("Missing cells and duplicate rows are different units and may overlap.")
-    st.caption("Charts use deterministic Pandas metrics. Missing cells and duplicate rows are different units and may overlap; outlier candidates are excluded.")
-
-
-def _status_message(result: InvestigationResult) -> None:
-    if result.status == "complete":
-        st.success("Investigation completed.")
-    elif result.status == "incomplete":
-        st.warning("Investigation incomplete. Findings cover executed checks only.")
-    else:
-        st.error(result.error or "Investigation failed.")
-
-
-def _render_trace(result: InvestigationResult) -> None:
-    st.subheader("Investigation trace")
-    if not result.steps:
-        st.caption("No tools were executed.")
-        return
-    for index, step in enumerate(result.steps, start=1):
-        tool_result = step.result
-        status = tool_result.get("status", "unknown")
-        with st.expander(f"Step {index} · {step.tool_name} · {status}", expanded=index == len(result.steps)):
-            st.write("Parameters")
-            st.json(step.arguments)
-            if status == "success":
-                st.write("Observed metrics")
-                st.json(tool_result.get("metrics", {}))
-                if tool_result.get("evidence"):
-                    st.write("Bounded evidence")
-                    st.json(tool_result["evidence"])
+            if st.session_state["upload_error"]:
+                st.error(f"CSV could not be loaded: {st.session_state['upload_error']}")
             else:
-                st.error(tool_result.get("error", "Tool failed"))
-            for warning in tool_result.get("warnings", []):
-                st.warning(warning)
-
-
-def _render_findings(report: dict[str, Any]) -> None:
-    st.subheader("Verified findings")
-    findings = report.get("verified_findings", [])
-    if not findings:
-        st.info("No verified issue findings were produced from the executed checks.")
-    for finding in findings:
-        with st.container(border=True):
-            st.markdown(f"**{finding['title']}**")
-            st.caption(
-                f"{finding['classification']} · confidence: {finding.get('confidence', 'context required')} · "
-                f"source: {finding['tool_name']} / {finding['metric_path']}"
+                st.info("Upload a UTF-8 CSV to begin. The existing ingestion limits are enforced.")
+                st.caption("Supported formats: UTF-8 & UTF-8 with BOM · Row, column, and file size limits validated · Header row required.")
+        else:
+            col_bar, col_manage = st.columns([3, 1])
+            with col_bar:
+                st.markdown(
+                    """
+                    <div style="background:#111827; border:1px dashed #1F293D; border-radius:8px; padding:8px 14px; margin-bottom:12px; display:flex; align-items:center; gap:8px;">
+                        <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#94A3B8;"></span>
+                        <span style="font-size:0.86rem; color:#94A3B8;">
+                            No active dataset loaded. Upload a CSV to activate this workspace.
+                        </span>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+            with col_manage:
+                with st.expander("Upload dataset", expanded=False):
+                    uploaded_file = st.file_uploader(
+                        "Upload a CSV file",
+                        type=["csv"],
+                        key="csv_uploader",
+                        label_visibility="collapsed",
+                    )
+                    if uploaded_file is not None:
+                        _load_uploaded_dataset(uploaded_file)
+            if st.session_state.get("upload_error"):
+                st.error(f"CSV could not be loaded: {st.session_state['upload_error']}")
+    else:
+        # Compact dataset-management controls when a dataset is loaded
+        col_bar, col_manage = st.columns([3, 1])
+        with col_bar:
+            st.markdown(
+                f"""
+                <div style="background:#111827; border:1px solid #1F293D; border-radius:8px; padding:8px 14px; margin-bottom:12px; display:flex; align-items:center; gap:8px;">
+                    <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#34D399;"></span>
+                    <span style="font-size:0.86rem; color:#E2E8F0;">
+                        <b>Active Dataset:</b> <span style="font-family:monospace; color:#38BDF8;">{html.escape(context.filename)}</span>
+                        <span style="color:#94A3B8; margin-left:6px;">({len(context.dataframe):,} rows · {len(context.dataframe.columns)} columns)</span>
+                    </span>
+                </div>
+                """,
+                unsafe_allow_html=True,
             )
-            st.write(f"Affected columns: {', '.join(finding.get('columns', [])) or 'dataset-wide'}")
-            st.write(f"Observed value: {finding.get('value')}")
-            if finding.get("evidence"):
-                st.json(finding["evidence"])
-
-    if report.get("model_interpretation"):
-        st.subheader("Model interpretation")
-        st.info(report["model_interpretation"])
-        st.caption("This is an unverified interpretation; numerical facts above come from executed tools.")
-
-
-def _render_recommendations(report: dict[str, Any]) -> None:
-    st.subheader("Cleaning recommendations")
-    recommendations = report.get("cleaning_recommendations", [])
-    if not recommendations:
-        st.info("No recommendations were generated.")
-        return
-    for recommendation in recommendations:
-        with st.container(border=True):
-            st.markdown(f"**{recommendation['issue']}**")
-            st.caption(
-                f"Evidence: {recommendation['evidence_classification']} · "
-                f"confidence: {recommendation['confidence']}"
-            )
-            st.write("Potential analytical impact", recommendation["potential_analytical_impact"])
-            st.write("Suggested follow-up", recommendation["suggested_follow_up"])
-            st.write("Conditional treatment options", recommendation["conditional_treatment_options"])
-            st.write("Risks and assumptions", recommendation["risks_and_assumptions"])
-            st.write("Post-treatment validation", recommendation["post_treatment_validation"])
-
-
-def _render_report_exports(report: dict[str, Any]) -> None:
-    st.subheader("Export report")
-    json_report = report_to_json(report)
-    markdown_report = report_to_markdown(report)
-    export_columns = st.columns(2)
-    export_columns[0].download_button(
-        "Download JSON",
-        data=json_report,
-        file_name="datasleuth-report.json",
-        mime="application/json",
-        width="stretch",
-    )
-    export_columns[1].download_button(
-        "Download Markdown",
-        data=markdown_report,
-        file_name="datasleuth-report.md",
-        mime="text/markdown",
-        width="stretch",
-    )
+        with col_manage:
+            with st.expander("Manage dataset", expanded=False):
+                st.caption("Replace dataset:")
+                replace_file = st.file_uploader(
+                    "Upload a CSV file",
+                    type=["csv"],
+                    key="csv_uploader",
+                    label_visibility="collapsed",
+                )
+                if replace_file is not None:
+                    _load_uploaded_dataset(replace_file)
+                if st.button("Remove dataset", type="secondary", use_container_width=True, key="btn_remove_dataset"):
+                    st.session_state["dataset_context"] = None
+                    st.session_state["dataset_signature"] = None
+                    st.session_state["upload_error"] = None
+                    st.session_state["investigation_result"] = None
+                    st.session_state["report"] = None
+                    st.rerun()
 
 
 def main() -> None:
-    st.set_page_config(page_title="DataSleuth AI", page_icon="🔎", layout="wide")
+    st.set_page_config(
+        page_title="DataSleuth AI",
+        page_icon="🔎",
+        layout="wide",
+        initial_sidebar_state="expanded",
+    )
     _initialize_state()
-    _render_styles()
-    _render_header()
-    _render_upload()
-    context = st.session_state["dataset_context"]
-    if context is None:
-        return
-    _render_overview(context)
-    _render_visualizations(context)
-    _render_controls(context)
-    result = st.session_state["investigation_result"]
-    report = st.session_state["report"]
-    if result is None or report is None:
-        return
-    st.divider()
-    _status_message(result)
-    _render_findings(report)
-    _render_recommendations(report)
-    _render_trace(result)
-    if report.get("warnings") or report.get("validation_errors"):
-        st.subheader("Warnings and limitations")
-        for message in report.get("warnings", []) + report.get("validation_errors", []) + report.get("limitations", []):
-            st.warning(message)
-    _render_report_exports(report)
+    inject_custom_styles()
+
+    current_context: DatasetContext | None = st.session_state.get("dataset_context")
+    current_view: str = st.session_state.get("active_view", "Overview")
+
+    # Top header with unclipped status badge
+    _render_top_header(current_context)
+
+    # Single authoritative CSV uploader (processes upload and updates session state)
+    _render_upload_section(current_context, current_view)
+
+    # Refresh state after potential upload processing in this run
+    context: DatasetContext | None = st.session_state["dataset_context"]
+    result: InvestigationResult | None = st.session_state["investigation_result"]
+    report: dict[str, Any] | None = st.session_state["report"]
+
+    # Render sidebar navigation (always reflects latest state)
+    active_view = render_sidebar(context)
+
+    # Route to active view for both loaded and empty states
+    if active_view == "Overview":
+        render_overview_view(context)
+    elif active_view == "Dataset Explorer":
+        render_dataset_view(context, _load_uploaded_dataset)
+    elif active_view == "Investigation":
+        render_investigation_view(context, result, report, _execute_investigation)
+    elif active_view == "Findings":
+        render_findings_view(report)
+    elif active_view == "Recommendations":
+        render_recommendations_view(report)
+    elif active_view == "Execution Trace":
+        render_trace_view(result)
+    elif active_view == "Reports":
+        render_reports_view(context, report)
+    else:
+        render_overview_view(context)
 
 
 if __name__ == "__main__":
