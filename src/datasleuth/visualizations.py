@@ -16,7 +16,8 @@ from .tools import analyze_missing_values, detect_duplicates
 
 
 _TYPE_ORDER = ["Numeric", "Text / categorical", "Boolean", "Date/time", "Other"]
-_TYPE_COLORS = ["#69a6d1", "#8ec6a5", "#e6b566", "#b59ad9", "#8a9aab"]
+_TYPE_COLORS = ["#38BDF8", "#34D399", "#F59E0B", "#818CF8", "#94A3B8"]
+_FONT_FAMILY = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
 
 
 def _column_type(series: pd.Series) -> str:
@@ -61,24 +62,28 @@ def dataset_composition_figure(context: DatasetContext) -> go.Figure:
             customdata=data[["columns"]],
             text=data["column_count"],
             textposition="auto",
-            hovertemplate="%{x}<br>Columns: %{y}<br>%{customdata[0]}<extra></extra>",
+            textfont={"family": _FONT_FAMILY, "color": "#F1F5F9", "size": 12},
+            hovertemplate="<b>%{x}</b><br>Count: %{y}<br>Columns: %{customdata[0]}<extra></extra>",
             marker_color=_TYPE_COLORS,
+            marker_line={"color": "rgba(38, 52, 73, 0.8)", "width": 1},
         )
     )
     figure.update_layout(
         title="Dataset Composition",
         xaxis_title="Pandas-inferred type",
         yaxis_title="Column count",
-        yaxis={"rangemode": "tozero", "dtick": 1},
+        yaxis={"rangemode": "tozero", "dtick": 1, "gridcolor": "rgba(38, 52, 73, 0.6)"},
+        xaxis={"tickfont": {"family": _FONT_FAMILY, "color": "#94A3B8", "size": 11}},
         height=315,
-        margin={"l": 50, "r": 20, "t": 60, "b": 65},
+        margin={"l": 48, "r": 16, "t": 54, "b": 60},
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
-        font={"color": "#dbe8f5"},
+        font={"family": _FONT_FAMILY, "color": "#F1F5F9"},
+        hoverlabel={"bgcolor": "#162033", "bordercolor": "#263449", "font": {"family": _FONT_FAMILY, "color": "#F1F5F9"}},
         showlegend=False,
     )
     figure.update_xaxes(showgrid=False)
-    figure.update_yaxes(gridcolor="rgba(180,205,225,.16)")
+    figure.update_yaxes(gridcolor="rgba(38, 52, 73, 0.6)")
     return figure
 
 
@@ -106,19 +111,22 @@ def issue_breakdown_figure(counts: dict[str, int]) -> go.Figure | None:
             values=values,
             hole=0.5,
             textinfo="value",
-            hovertemplate="%{label}: %{value} issue count<extra></extra>",
-            marker_colors=["#69a6d1", "#e6b566"],
+            textfont={"family": _FONT_FAMILY, "color": "#F1F5F9", "size": 13},
+            hovertemplate="<b>%{label}</b>: %{value}<extra></extra>",
+            marker_colors=["#38BDF8", "#F59E0B"],
+            marker_line={"color": "#111827", "width": 2},
             sort=False,
         )
     )
     figure.update_layout(
         title="Breakdown of Detected Issues",
         height=315,
-        margin={"l": 20, "r": 20, "t": 60, "b": 20},
+        margin={"l": 16, "r": 16, "t": 54, "b": 24},
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
-        font={"color": "#dbe8f5"},
+        font={"family": _FONT_FAMILY, "color": "#F1F5F9"},
+        hoverlabel={"bgcolor": "#162033", "bordercolor": "#263449", "font": {"family": _FONT_FAMILY, "color": "#F1F5F9"}},
         showlegend=True,
-        legend={"orientation": "h", "y": -0.04, "x": 0.5, "xanchor": "center"},
+        legend={"orientation": "h", "y": -0.05, "x": 0.5, "xanchor": "center", "font": {"family": _FONT_FAMILY, "color": "#94A3B8", "size": 11}},
     )
     return figure
