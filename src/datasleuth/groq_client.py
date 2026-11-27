@@ -19,9 +19,27 @@ from groq import (
 from .config import (
     GROQ_MODEL,
     GROQ_TEMPERATURE,
+    GROQ_TIMEOUT_SECONDS,
     GROQ_TOOL_CALL_RECOVERY_TEMPERATURE,
     MAX_GROQ_RETRIES,
 )
+
+
+def is_groq_configured() -> bool:
+    """Return True if a non-empty GROQ_API_KEY is present in the environment."""
+
+    return bool((os.getenv("GROQ_API_KEY") or "").strip())
+
+
+def is_live_ai_enabled() -> bool:
+    """Return True when GROQ_API_KEY is configured and public-demo lock is not active."""
+
+    public_demo = (os.getenv("DATASLEUTH_PUBLIC_DEMO_MODE") or "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+    }
+    return is_groq_configured() and not public_demo
 
 
 class GroqClientError(RuntimeError):
@@ -81,7 +99,7 @@ class GroqClient:
         if client is None and not key:
             raise GroqConfigurationError("GROQ_API_KEY is not configured")
         self.model = model
-        self.client = client or Groq(api_key=key, max_retries=0)
+        self.client = client or Groq(api_key=key, max_retries=0, timeout=GROQ_TIMEOUT_SECONDS)
         self.max_retries = max(0, max_retries)
         self.temperature = temperature
         self.tool_call_recovery_temperature = tool_call_recovery_temperature

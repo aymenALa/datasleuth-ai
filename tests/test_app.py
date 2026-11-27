@@ -1,7 +1,7 @@
-"""Focused local UI tests for the Streamlit entry point."""
+"""Focused local UI and state-transition tests for the Streamlit entry point."""
 
-from pathlib import Path
 from io import BytesIO
+from pathlib import Path
 
 import pytest
 from streamlit.testing.v1 import AppTest
@@ -9,45 +9,73 @@ from streamlit.testing.v1 import AppTest
 import app
 from datasleuth.models import InvestigationResult
 
-
 APP_PATH = Path(__file__).parents[1] / "app.py"
 
 
-def test_streamlit_startup_has_upload_prompt():
+def test_streamlit_startup_renders_standalone_landing_without_uploader():
     at = AppTest.from_file(str(APP_PATH)).run()
 
-    assert at.title[0].value == "DataSleuth AI"
+    assert len(at.exception) == 0
+    assert at.session_state["app_experience"] == "landing"
+    assert at.session_state["dataset_context"] is None
+    assert len(at.file_uploader) == 0
+    assert any("Launch Workspace" in b.label for b in at.button)
+
+
+def test_launch_workspace_opens_onboarding_with_upload_prompt():
+    at = AppTest.from_file(str(APP_PATH)).run()
+    launch_btn = [b for b in at.button if "Launch Workspace" in b.label][0]
+    launch_btn.click().run()
+
+    assert len(at.exception) == 0
+    assert at.session_state["app_experience"] == "onboarding"
+    assert at.session_state["dataset_context"] is None
     assert at.file_uploader[0].allowed_type == [".csv"]
     assert any("Upload a UTF-8 CSV" in item.value for item in at.info)
 
 
-def test_successful_csv_upload_renders_bounded_overview():
+def test_successful_csv_upload_navigates_to_overview_with_metrics_and_charts():
     at = AppTest.from_file(str(APP_PATH)).run()
+    [b for b in at.button if "Launch Workspace" in b.label][0].click().run()
+
     at.file_uploader[0].set_value(("sample.csv", b"name,score\nAda,10\nGrace,20\n", "text/csv"))
     at.run()
 
+    assert len(at.exception) == 0
+    assert at.session_state["app_experience"] == "workspace"
+    assert at.session_state["active_view"] == "Overview"
+    assert at.session_state["dataset_source_type"] == "uploaded"
     assert [metric.label for metric in at.metric] == ["Rows", "Columns", "File"]
     assert at.metric[0].value == "2"
     assert at.metric[1].value == "2"
     assert at.metric[2].value == "sample.csv"
-    assert any("inferred by Pandas" in item.value for item in at.caption)
-
-
-def test_successful_csv_upload_renders_deterministic_visualizations_without_agent():
-    at = AppTest.from_file(str(APP_PATH)).run()
-    at.file_uploader[0].set_value(("quality.csv", b"name,score\nAda,10\nGrace,20\n", "text/csv"))
-    at.run()
-
     assert any("Data Quality Visualizations" in item.value for item in at.subheader)
     assert any("No missing cells" in item.value for item in at.info)
 
 
-def test_invalid_csv_upload_displays_readable_error():
+def test_invalid_csv_upload_displays_readable_error_on_onboarding():
     at = AppTest.from_file(str(APP_PATH)).run()
+    [b for b in at.button if "Launch Workspace" in b.label][0].click().run()
+
     at.file_uploader[0].set_value(("bad.csv", b"name,name\nAda,1\n", "text/csv"))
     at.run()
 
+    assert at.session_state["app_experience"] == "onboarding"
+    assert at.session_state["dataset_context"] is None
     assert any("CSV could not be loaded" in item.value for item in at.error)
+
+
+def test_oversized_csv_upload_displays_10mb_limit_error():
+    at = AppTest.from_file(str(APP_PATH)).run()
+    [b for b in at.button if "Launch Workspace" in b.label][0].click().run()
+
+    oversized = b"col\n" + (b"1\n" * (5 * 1024 * 1024 + 500_000))
+    at.file_uploader[0].set_value(("huge.csv", oversized, "text/csv"))
+    at.run()
+
+    assert at.session_state["app_experience"] == "onboarding"
+    assert at.session_state["dataset_context"] is None
+    assert any("maximum allowed" in item.value.lower() for item in at.error)
 
 
 def test_uploading_a_new_dataset_clears_stale_investigation_state(monkeypatch):
@@ -154,131 +182,35 @@ def test_mocked_investigation_persists_result_and_report_without_api_call(monkey
     assert app.st.session_state["report"]["model_interpretation"] == "Mocked summary"
 
 
-def test_dataset_explorer_navigation_after_csv_upload_has_single_authoritative_uploader_and_no_exception(monkeypatch):
-    """Reproduce and verify resolution of StreamlitDuplicateElementId on Dataset Explorer navigation."""
+def test_workspace_navigation_and_home_resume_flow(monkeypatch):
     def unexpected_agent_call(*args, **kwargs):
         pytest.fail("Agent must not be invoked during navigation")
 
     monkeypatch.setattr(app, "run_investigation", unexpected_agent_call)
 
-    # 1. Start application
     at = AppTest.from_file(str(APP_PATH)).run()
-    assert len(at.exception) == 0
-    assert len(at.file_uploader) == 1
-
-    # 2. Upload a valid CSV
+    [b for b in at.button if "Launch Workspace" in b.label][0].click().run()
     at.file_uploader[0].set_value(("sample.csv", b"name,score\nAda,10\nGrace,20\n", "text/csv"))
     at.run()
-    assert len(at.exception) == 0
-    assert at.session_state["dataset_context"] is not None
 
-    # 3. Navigate to Dataset Explorer
-    btn_de = [b for b in at.sidebar.button if "Dataset Explorer" in b.label][0]
-    btn_de.click().run()
-
-    # 4. Confirm workspace renders without exceptions
-    assert len(at.exception) == 0
-
-    # 5. Confirm exactly one authoritative uploader exists
-    assert len(at.file_uploader) == 1
-    assert at.file_uploader[0].key == "csv_uploader"
-
-    # 6. Confirm dataset remains available
-    context = at.session_state["dataset_context"]
-    assert context is not None
-    assert context.filename == "sample.csv"
-
-    # 7. Navigate to Investigation and all other views
-    for dest in ["Investigation", "Findings", "Recommendations", "Execution Trace", "Reports", "Overview"]:
+    assert at.session_state["app_experience"] == "workspace"
+    for dest in ["Dataset Explorer", "Investigation", "Findings", "Recommendations", "Execution Trace", "Reports", "Overview"]:
         btn = [b for b in at.sidebar.button if dest in b.label][0]
         btn.click().run()
         assert len(at.exception) == 0
-        assert len(at.file_uploader) == 1
         assert at.session_state["dataset_context"] is not None
 
-    # 8. Confirm no agent invocation occurred during navigation
-    assert at.session_state["investigation_result"] is None
-
-    # 9. Replace dataset intentionally
-    at.file_uploader[0].set_value(("replaced.csv", b"col_a,col_b\n1,2\n3,4\n", "text/csv"))
-    at.run()
-    assert len(at.exception) == 0
-    assert at.session_state["dataset_context"].filename == "replaced.csv"
-
-    # 10. Verify removal/clearing behavior invalidates stale state
-    at.file_uploader[0].set_value(None)
-    at.session_state["dataset_context"] = None
-    at.session_state["dataset_signature"] = None
-    at.session_state["investigation_result"] = None
-    at.session_state["report"] = None
-    at.run()
-    assert len(at.exception) == 0
-    assert at.session_state["dataset_context"] is None
-    assert at.session_state["investigation_result"] is None
-    assert at.session_state["report"] is None
+    # Return Home with active dataset -> Resume Investigation available
+    back_btn = [b for b in at.sidebar.button if "Back to Home" in b.label][0]
+    back_btn.click().run()
+    assert at.session_state["app_experience"] == "landing"
+    assert at.session_state["dataset_context"] is not None
+    resume_btn = [b for b in at.button if "Resume Investigation" in b.label][0]
+    resume_btn.click().run()
+    assert at.session_state["app_experience"] == "workspace"
+    assert at.session_state["dataset_context"].filename == "sample.csv"
 
 
-def test_empty_state_navigation_displays_corresponding_workspace_for_all_destinations():
-    """Verify that selecting navigation items without a loaded dataset updates the displayed workspace."""
-    at = AppTest.from_file(str(APP_PATH)).run()
-
-    # Initial state is Overview with authoritative uploader
-    assert at.session_state["active_view"] == "Overview"
-    assert len(at.file_uploader) == 1
-
-    # Navigate to Dataset Explorer with no dataset loaded
-    btn_de = [b for b in at.sidebar.button if "Dataset Explorer" in b.label][0]
-    btn_de.click().run()
-    assert len(at.exception) == 0
-    assert at.session_state["active_view"] == "Dataset Explorer"
-    assert any("Dataset Explorer" in item.value for item in at.markdown)
-    assert any("No Dataset Loaded" in item.value for item in at.markdown)
-    assert len(at.file_uploader) == 1
-
-    # Navigate to Investigation with no dataset loaded
-    btn_inv = [b for b in at.sidebar.button if "Investigation" in b.label][0]
-    btn_inv.click().run()
-    assert len(at.exception) == 0
-    assert at.session_state["active_view"] == "Investigation"
-    assert any("Investigation Center" in item.value for item in at.markdown)
-    assert any("No Dataset Available to Investigate" in item.value for item in at.markdown)
-    assert len(at.file_uploader) == 1
-
-    # Navigate to Findings with no dataset loaded
-    btn_find = [b for b in at.sidebar.button if "Findings" in b.label][0]
-    btn_find.click().run()
-    assert len(at.exception) == 0
-    assert at.session_state["active_view"] == "Findings"
-    assert any("Findings Explorer" in item.value for item in at.markdown)
-    assert any("No Investigation Findings Available" in item.value for item in at.markdown)
-
-    # Navigate to Recommendations with no dataset loaded
-    btn_rec = [b for b in at.sidebar.button if "Recommendations" in b.label][0]
-    btn_rec.click().run()
-    assert len(at.exception) == 0
-    assert at.session_state["active_view"] == "Recommendations"
-    assert any("Recommendation Center" in item.value for item in at.markdown)
-    assert any("No Recommendations Available" in item.value for item in at.markdown)
-
-    # Navigate to Execution Trace with no dataset loaded
-    btn_trace = [b for b in at.sidebar.button if "Execution Trace" in b.label][0]
-    btn_trace.click().run()
-    assert len(at.exception) == 0
-    assert at.session_state["active_view"] == "Execution Trace"
-    assert any("Execution Trace" in item.value for item in at.markdown)
-    assert any("No Execution Steps Recorded" in item.value for item in at.markdown)
-
-    # Navigate to Reports with no dataset loaded
-    btn_rep = [b for b in at.sidebar.button if "Reports" in b.label][0]
-    btn_rep.click().run()
-    assert len(at.exception) == 0
-    assert at.session_state["active_view"] == "Reports"
-    assert any("Report Center" in item.value for item in at.markdown)
-    assert any("No Investigation Report Generated" in item.value for item in at.markdown)
-
-    # Return to Overview
-    btn_ov = [b for b in at.sidebar.button if "Overview" in b.label][0]
-    btn_ov.click().run()
-    assert len(at.exception) == 0
-    assert at.session_state["active_view"] == "Overview"
-    assert any("Load a dataset" in item.value for item in at.subheader)
+def test_streamlit_config_aligns_10mb_upload_limit():
+    config_text = (Path(__file__).parents[1] / ".streamlit" / "config.toml").read_text(encoding="utf-8")
+    assert "maxUploadSize = 10" in config_text

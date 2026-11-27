@@ -1,0 +1,25 @@
+order_id,customer_id,order_date,product_category,quantity,unit_price,discount_pct,order_total,payment_status,shipping_region
+ORD-1001,CUST-041,2026-01-05,Electronics,1,299.99,0,299.99,paid,North America
+ORD-1002,CUST-018,2026-01-06,Home Office,2,89.50,10,161.10,paid,Europe
+ORD-1003,CUST-077,2026-01-06,Accessories,3,24.00,0,72.00,paid,North America
+ORD-1004,CUST-019,2026-01-07,Electronics,1,549.00,5,521.55,pending,Asia Pacific
+ORD-1005,,2026-01-08,Software,1,149.00,0,149.00,paid,Europe
+ORD-1006,CUST-052,2026-01-09,Accessories,4,19.99,0,79.96,paid,North America
+ORD-1006,CUST-052,2026-01-09,Accessories,4,19.99,0,79.96,paid,North America
+ORD-1008,CUST-091,2026-01-10,Home Office,2,120.00,15,204.00,paid,
+ORD-1009,CUST-033,2026-01-11,Electronics,1,899.00,none,899.00,paid,Europe
+ORD-1010,CUST-064,2026-01-12,Accessories,2,35.00,0,70.00,refunded,North America
+ORD-1011,CUST-012,2026-01-13,Software,5,99.00,20,396.00,paid,Asia Pacific
+ORD-1012,CUST-088,2026-01-14,Electronics,1,420.00,0,420.00,paid,Europe
+ORD-1013,CUST-045,2026-01-15,Home Office,1,210.00,0,210.00,paid,North America
+ORD-1014,CUST-077,2026-01-16,Electronics,2,310.00,10,558.00,paid,North America
+ORD-1015,CUST-029,,Accessories,1,45.00,0,45.00,pending,Europe
+ORD-1016,CUST-053,2026-01-18,Software,1,199.00,0,199.00,paid,Asia Pacific
+ORD-1017,CUST-061,2026-01-19,Electronics,12,650.00,0,7800.00,paid,North America
+ORD-1018,CUST-084,2026-01-20,Home Office,1,175.00,5,166.25,paid,Europe
+ORD-1019,CUST-084,2026-01-20,Home Office,1,175.00,5,166.25,paid,Europe
+ORD-1020,CUST-099,2026-01-21,Accessories,2,29.50,0,59.00,paid,North America
+ORD-1021,CUST-014,2026-01-22,Electronics,1,399.00,10,359.10,paid,
+ORD-1022,CUST-037,2026-01-23,Software,1,129.00,0,129.00,paid,Europe
+ORD-1023,CUST-066,2026-01-24,Home Office,2,145.00,0,290.00,paid,North America
+ORD-1024,CUST-072,2026-01-25,Electronics,1,12500.00,0,12500.00,paid,Asia Pacific

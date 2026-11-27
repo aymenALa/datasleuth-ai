@@ -1,0 +1,17 @@
+log_id,department,shift_code,service_name,latency_ms,retry_count,status_code,sla_met
+LOG-9001,DataPlatform,DAY,csv-ingestor,118,0,200,true
+LOG-9002,DataPlatform,DAY,schema-profiler,142,0,200,true
+LOG-9003,Analytics,SWING,outlier-worker,165,1,200,true
+LOG-9004,Analytics,DAY,report-builder,131,0,200,true
+LOG-9005,,NIGHT,csv-ingestor,190,0,200,true
+LOG-9006,CoreAI,DAY,tool-dispatcher,154,0,200,true
+LOG-9006,CoreAI,DAY,tool-dispatcher,154,0,200,true
+LOG-9008,DataPlatform,SWING,schema-profiler,128,0,200,true
+LOG-9009,CoreAI,NIGHT,agent-loop,2450,3,504,false
+LOG-9010,Analytics,DAY,outlier-worker,149,0,200,true
+LOG-9011,DataPlatform,DAY,csv-ingestor,136,0,unknown,true
+LOG-9012,CoreAI,SWING,tool-dispatcher,160,1,200,true
+LOG-9013,Analytics,NIGHT,report-builder,172,0,,true
+LOG-9014,DataPlatform,DAY,csv-ingestor,125,0,200,true
+LOG-9015,CoreAI,DAY,agent-loop,188,0,200,true
+LOG-9016,Analytics,DAY,outlier-worker,144,0,200,true
