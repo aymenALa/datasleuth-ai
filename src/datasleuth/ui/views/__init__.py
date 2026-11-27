@@ -1,5 +1,7 @@
 """View modules for DataSleuth AI workspace."""
 
+from .landing import render_landing_page
+from .onboarding import render_onboarding_view
 from .overview import render_overview_view
 from .dataset import render_dataset_view
 from .investigation import render_investigation_view
@@ -9,6 +11,8 @@ from .trace import render_trace_view
 from .reports import render_reports_view
 
 __all__ = [
+    "render_landing_page",
+    "render_onboarding_view",
     "render_overview_view",
     "render_dataset_view",
     "render_investigation_view",

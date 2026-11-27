@@ -1,385 +1,340 @@
+<div align="center">
+
 # DataSleuth AI
 
-**Evidence-first AI data quality investigation for CSV datasets.**
+### Investigate your data. Trust the evidence.
 
-![Python](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white) ![Streamlit](https://img.shields.io/badge/Streamlit-Workspace-FF4B4B?logo=streamlit&logoColor=white) ![Pandas](https://img.shields.io/badge/Pandas-Analytics-150458?logo=pandas&logoColor=white) ![Plotly](https://img.shields.io/badge/Plotly-Visualization-3F4F75?logo=plotly&logoColor=white) ![Groq](https://img.shields.io/badge/Groq-LLM%20Orchestration-F55036) ![Tests](https://img.shields.io/badge/Reported%20tests-110%20passed-16803C)
+An autonomous CSV data quality investigation platform that separates **LLM investigation planning** from **deterministic Python computation**, validates every numerical claim against executed tool outputs, and delivers auditable reports without modifying your source data.
 
-DataSleuth AI helps analysts and developers investigate the quality of a dataset **before** cleaning it or using it for analytics, machine learning, or reporting. It combines deterministic Python-based inspection with an AI agent that coordinates investigations and explains their implications. Verified evidence, model interpretation, and advisory cleaning recommendations are kept separate.
+[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-1.67.0-FF4B4B?style=flat-square&logo=streamlit&logoColor=white)](https://streamlit.io/)
+[![Pandas](https://img.shields.io/badge/Pandas-3.1.1-150458?style=flat-square&logo=pandas&logoColor=white)](https://pandas.pydata.org/)
+[![Plotly](https://img.shields.io/badge/Plotly-7.1.0-3F4F75?style=flat-square&logo=plotly&logoColor=white)](https://plotly.com/)
+[![Groq](https://img.shields.io/badge/Groq_SDK-1.7.0-0891B2?style=flat-square)](https://groq.com/)
+[![Pytest](https://img.shields.io/badge/Pytest-9.2.0-0A9EDC?style=flat-square&logo=pytest&logoColor=white)](https://docs.pytest.org/)
 
-The application is a read-only investigation workspace: it does not automatically modify source data.
+**Live Demo:** `[Streamlit Community Cloud URL — Pending Deployment from main]`
 
-## Contents
+</div>
 
-- [Implemented V1 scope](#implemented-v1-scope)
-- [How it works](#how-it-works)
-- [Workspace](#workspace)
-- [Example investigation](#example-investigation)
-- [Architecture](#architecture)
-- [Technology stack](#technology-stack)
-- [Getting started](#getting-started)
-- [Testing](#testing)
-- [Privacy and limitations](#privacy-and-limitations)
-- [Frontend modernization](#frontend-modernization)
+---
 
-## Implemented V1 scope
+## Table of Contents
 
-DataSleuth AI investigates CSV data before any cleaning decision. Its original V1 roadmap is now implemented, with a modernized frontend.
+- [Product Tour & Screenshots](#product-tour--screenshots)
+- [Engineering Motivation](#engineering-motivation)
+- [Core Capabilities](#core-capabilities)
+- [Dual-Engine Architecture](#dual-engine-architecture)
+- [Agent Execution Lifecycle](#agent-execution-lifecycle)
+- [Deterministic Analysis Tools](#deterministic-analysis-tools)
+- [Evidence Validation & Reliability](#evidence-validation--reliability)
+- [Two Investigation Modes](#two-investigation-modes)
+- [Data Privacy & Security](#data-privacy--security)
+- [Technology Stack](#technology-stack)
+- [Sample Dataset Library](#sample-dataset-library)
+- [Installation & Configuration](#installation--configuration)
+- [Testing & Quality Assurance](#testing--quality-assurance)
+- [Project Structure](#project-structure)
+- [Deployment (Streamlit Community Cloud)](#deployment-streamlit-community-cloud)
 
-| Original development milestone | Delivered capability |
-| --- | --- |
-| Task 02 — Ingestion | Validated CSV loading from paths and binary file-like objects, UTF-8 and UTF-8-with-BOM support, and the `DatasetContext` contract. |
-| Task 03 — Analytical tools | Five deterministic read-only tools, JSON-compatible `ToolResult` objects, and bounded evidence. |
-| Task 04 — Agent | Bounded Groq orchestration, explicit JSON tool schemas, allowlisted dispatcher, structured execution state and bounded retries. |
-| Task 05A — Evidence and reports | Deterministic verification of numerical claims, measured facts and statistical candidates, conservative recommendations, strict JSON and escaped Markdown reports. |
-| Task 05B — Interface | CSV upload, bounded preview, explicit investigation controls, session persistence, stale-result invalidation and downloads. |
-| Tasks 06–07 — Visualization | Deterministic Plotly charts based on actual Pandas dtypes and tool metrics, without extra AI calls. |
-| PROJECT UI LAB — Modernization | Seven workspaces, modular UI, searchable findings, column filters, derived quality metrics, unified theme and navigation regression tests. Independent quality indicators supersede the original mixed-unit donut. |
+---
 
-### CSV input contract
+## Product Tour & Screenshots
 
-- Accepts UTF-8 and UTF-8-with-BOM CSVs, with validated file size, row count, column count and column names.
-- Rejects empty or whitespace-only files, malformed CSVs, duplicate column names, invalid encodings and oversized input with application-specific errors.
-- **Header-only CSVs are valid:** they produce a `DatasetContext` with zero rows and declared columns. Rates with zero denominators are unavailable rather than evidence of cleanliness.
-- Does not speculate about date types by parsing date-like strings; composition uses actual Pandas-inferred dtypes.
+| Standalone Landing Page | Dedicated Dataset Onboarding |
+| :---: | :---: |
+| ![Standalone Landing Page](docs/screenshots/01_landing_page.png) | ![Dataset Onboarding](docs/screenshots/02_dataset_onboarding.png) |
 
-## How it works
+| Dataset Overview | Investigation Center |
+| :---: | :---: |
+| ![Dataset Overview](docs/screenshots/03_dataset_overview.png) | ![Investigation Center](docs/screenshots/04_investigation_center.png) |
 
-```mermaid
-flowchart LR
-    A[Upload CSV] --> B{Validate input}
-    B -->|Invalid| E[Display validation error]
-    B -->|Valid| C[Profile dataset]
-    C --> D[Explore quality metrics]
-    D --> F[Define investigation goal]
-    F --> G[Run AI investigation]
-    G --> H[Execute allowlisted tools]
-    H --> I[Validate findings]
-    I --> J[Review evidence and recommendations]
-    J --> K[Export JSON or Markdown]
-```
+| Completed Investigation | Verified Findings |
+| :---: | :---: |
+| ![Completed Investigation](docs/screenshots/05_completed_investigation.png) | ![Verified Findings](docs/screenshots/06_verified_findings.png) |
 
-1. Upload a CSV and inspect its inferred schema, preview, and quality metrics.
-2. Define an investigation objective or select a suggested objective.
-3. Explicitly run the investigation. The agent coordinates available inspection tools under bounded execution limits.
-4. Review measured facts, statistical candidates, and the separately labelled AI interpretation.
-5. Inspect the execution trace and export the report for further analysis or documentation.
+| Cleaning Recommendations | Execution Trace |
+| :---: | :---: |
+| ![Cleaning Recommendations](docs/screenshots/07_cleaning_recommendations.png) | ![Execution Trace](docs/screenshots/08_execution_trace.png) |
 
-## Workspace
+| Report Center (JSON & Markdown Exports) |
+| :---: |
+| ![Report Center](docs/screenshots/09_report_center.png) |
 
-| Workspace | What you can do |
-| --- | --- |
-| **Overview** | Inspect dataset dimensions, missing-cell and duplicate-row rates, composition charts, column completeness, and investigation status. |
-| **Dataset Explorer** | Browse a bounded preview, search columns, and filter by inferred type or missingness. |
-| **Investigation** | Choose or edit an objective, run the agent explicitly, and review its interpretation. |
-| **Findings** | Search and filter evidence-backed findings by classification, confidence, and affected column. |
-| **Recommendations** | Review potential impact, suggested follow-up, conditional treatments, risks, and validation steps. |
-| **Execution Trace** | Inspect recorded tool calls, arguments, statuses, observed metrics, and technical evidence. |
-| **Reports** | Review investigation metadata and limitations, then download JSON and Markdown reports. |
+---
 
-Navigation uses shared session state. Switching workspaces is not intended to trigger a new investigation; replacing or removing a dataset invalidates results belonging to the previous dataset.
+## Engineering Motivation
 
-## Example investigation
+Standard AI chatbots cannot be trusted to compute data quality statistics directly from raw CSV text:
 
-The following example reproduces the values visible in the project's demonstrated `demo_sales - Sheet1.csv` investigation. It is an illustrative case, not a built-in dataset or a promise that every model run will produce identical prose.
+1. **Token & Context Limits:** Sending entire datasets to an LLM is expensive, leaks raw records, and fails on medium-to-large tables.
+2. **Unverified Arithmetic:** Language models frequently hallucinate counts, percentages, and quantiles when summarizing tabular data.
+3. **Opaque Reasoning:** A chat reply does not provide an auditable trail of which checks ran, which columns were inspected, or which rows triggered a warning.
 
-**Goal:** Identify the most important data-quality risks and explain the evidence.
+**DataSleuth AI solves this by separating planning from computation:** the LLM (in Live AI Mode) only decides *which* allowlisted tool to run next using schema metadata and bounded summaries, while all numerical calculations execute deterministically in local Python/Pandas and pass through an evidence validation gate.
 
-### Dataset overview
+---
 
-| Indicator | Observed value | Meaning |
-| --- | ---: | --- |
-| Rows | 8 | Dataset records |
-| Columns | 4 | `order_id`, `customer`, `amount`, `quantity` |
-| Total cells | 32 | Rows × columns |
-| Missing cells | 2 (6.25%) | Missing cells / all dataset cells |
-| Redundant duplicate rows | 1 (12.50%) | Repeated full rows beyond the first occurrence / all rows |
-| Outlier candidate in `amount` | 9,999 | Flagged by the IQR method, not a confirmed error |
+## Core Capabilities
 
-### Dataset composition
+- **Validated CSV Ingestion (`data_loader.py`):** UTF-8 / UTF-8-with-BOM decoding, duplicate-header rejection, consistent row-width verification, and strict size/shape bounds (`10 MB`, `50,000` rows, `100` columns).
+- **Dataset Profiling:** Exact row/column counts, Pandas-inferred dtypes, non-null counts, numerical `describe()` statistics, and bounded categorical cardinality.
+- **Missing-Value Analysis:** Exact missing cell counts, column-level percentages, affected row counts, fully empty columns, and bounded affected row positions.
+- **Duplicate Detection:** Full-row and key-column redundant row counts, duplicate-group row counts, and bounded example records.
+- **Column Inspection:** Per-column dtype inspection, observed Python types, mixed-type detection, and numeric conversion probe failure counts.
+- **Conservative IQR Outlier Detection:** Local Q1, Q3, IQR, and `1.5 × IQR` fence computation, explicitly labeled as statistical candidates rather than confirmed errors.
+- **Evidence Validation (`validator.py`):** Verifies numerical claims against observed `ToolResult` metrics and isolates LLM narrative as unverified interpretation.
+- **Grounded Recommendations & Exports (`reports.py`):** Advisory-only cleaning guidance, strict JSON (`allow_nan=False`), and HTML/Markdown-escaped reports.
+- **Deterministic Visualizations (`visualizations.py`):** Interactive Plotly dataset-composition charts and independent quality indicators.
+
+---
+
+## Dual-Engine Architecture
 
 ```mermaid
-pie showData
-    title Column composition (4 columns)
-    "Numeric" : 3
-    "Text / categorical" : 1
+flowchart TB
+    subgraph UI["Presentation Layer (Streamlit)"]
+        Landing["Standalone Landing Page"]
+        Onboarding["Dataset Onboarding (Upload / 5 Samples)"]
+        Workspace["7-View Investigation Workspace"]
+    end
+
+    subgraph EngineA["Engine A — Planning & Orchestration"]
+        Live["Live AI Planner (Groq: openai/gpt-oss-20b)<br/>Max 8 turns · Max 8 tool calls"]
+        Guided["Guided Deterministic Planner<br/>Predefined bounded sequence (No LLM)"]
+    end
+
+    subgraph EngineB["Engine B — Deterministic Python & Validation"]
+        Loader["CSV Ingestion & Contract (data_loader.py)"]
+        Dispatch["Allowlisted Tool Dispatcher (agent.py)"]
+        Tools["5 Read-Only Pandas/NumPy Tools (tools.py)"]
+        Validator["Evidence Validation Gate (validator.py)"]
+        Reports["JSON / Markdown Reports & Plotly Charts"]
+    end
+
+    Landing --> Onboarding --> Loader --> Workspace
+    Workspace --> Live
+    Workspace --> Guided
+    Live -->|"Allowlisted JSON Tool Calls"| Dispatch
+    Guided -->|"Deterministic Tool Sequence"| Dispatch
+    Dispatch --> Tools -->|"Compact ToolResult"| Validator
+    Validator -->|"Verified Findings & Advice"| Reports
+    Reports --> Workspace
 ```
 
-### Column completeness
+---
 
-```mermaid
-xychart-beta
-    title "Completeness by column (%)"
-    x-axis [order_id, customer, amount, quantity]
-    y-axis "Completeness (%)" 0 --> 100
-    bar [100, 100, 75, 100]
-```
-
-Missing cells and redundant duplicate rows are intentionally reported separately: they have different denominators and may overlap. They should not be combined into a single quality score.
-
-### Three common investigation cases
-
-| Case | Verified observation | Why it matters | Suggested follow-up |
-| --- | --- | --- | --- |
-| Missing values | 2 of 8 `amount` values are missing (25% of that column). | Revenue summaries may be incomplete or biased. | Investigate missingness and source collection before choosing a treatment. |
-| Duplicate records | 1 redundant full row (12.5% of rows). | Counts and aggregates may be inflated. | Confirm whether the repeated record is legitimate before deduplicating. |
-| Statistical outliers | `amount = 9999` was flagged as a candidate (1 of 6 eligible numeric observations). | Extreme values can affect means, variance, and downstream models. | Validate against source records and domain context; do not automatically remove it. |
-
-```mermaid
-flowchart TD
-    A[Investigate data quality] --> B[Missing values]
-    A --> C[Duplicate records]
-    A --> D[Statistical outliers]
-    B --> E[Check missingness and source records]
-    C --> F[Validate business keys and repeated events]
-    D --> G[Check source value and domain context]
-    E --> H[Advisory recommendations]
-    F --> H
-    G --> H
-    H --> I[User decides on treatment outside this workflow]
-```
-
-## Architecture
-
-The interface is separated from the core investigation engine. Streamlit manages the workspace and session-scoped presentation state; the existing analytical tools remain the source of numerical evidence.
-
-```mermaid
-flowchart TD
-    U[User] --> UI[Streamlit workspace]
-    UI --> S[Session-scoped dataset and results]
-    UI --> L[CSV loader and validation]
-    L --> S
-    S --> P[Deterministic profiling and charts]
-    UI -->|Explicit run| A[Investigation agent]
-    A -->|Allowlisted calls| T[Local inspection tools]
-    S --> T
-    T -->|Bounded results| A
-    A <-->|Model requests and responses| G[Groq API]
-    A --> V[Findings validator]
-    T --> V
-    V --> R[Report generation]
-    R --> S
-    S --> UI
-    R --> X[JSON and Markdown exports]
-```
-
-### Agent tools
-
-| Tool | Responsibility |
-| --- | --- |
-| `profile_dataset` | Inspect dataset shape, types, and descriptive statistics. |
-| `analyze_missing_values` | Identify missing counts and distributions. |
-| `detect_duplicates` | Identify redundant full-row duplicates. |
-| `inspect_column` | Inspect a selected column and its available statistics. |
-| `detect_outliers` | Flag numerical outlier candidates using the IQR method. |
-
-### Bounded agent execution
+## Agent Execution Lifecycle
 
 ```mermaid
 sequenceDiagram
-    participant U as User
-    participant UI as Streamlit
-    participant A as Investigation agent
-    participant G as Groq API
-    participant T as Local tools
-    participant V as Validator
-    U->>UI: Submit investigation goal
-    UI->>A: Start bounded investigation
-    loop Within configured execution limits
-        A->>G: Goal, context and bounded observations
-        G-->>A: Tool request or model response
-        opt Allowlisted tool request
-            A->>T: Validate arguments and execute
-            T-->>A: Structured ToolResult
+    actor User
+    participant UI as Streamlit Workspace
+    participant Loader as CSV Data Loader
+    participant Agent as Investigation Agent
+    participant Groq as Groq LLM (Live AI)
+    participant Tools as Local Python Tools
+    participant Val as Evidence Validator
+
+    User->>UI: Upload CSV or select Sample + Goal
+    UI->>Loader: load_csv(source)
+    Loader-->>UI: DatasetContext (read-only DataFrame)
+    User->>UI: Click "Run investigation"
+    UI->>Agent: Run baseline checks
+    Agent->>Tools: profile_dataset, analyze_missing_values, detect_duplicates
+    Tools-->>Agent: Bounded baseline ToolResults
+    loop Up to 8 turns / 8 tool calls
+        Agent->>Groq: Goal + schema metadata + bounded metrics
+        Groq-->>Agent: Allowlisted tool call OR final summary
+        alt Tool call requested
+            Agent->>Tools: execute_tool(name, args)
+            Tools-->>Agent: ToolResult (metrics + bounded evidence)
         end
     end
-    A->>V: Observations and finding claims
-    V-->>UI: Verified evidence via report pipeline
-    UI-->>U: Findings, interpretation and advisory recommendations
+    Agent-->>UI: InvestigationResult
+    UI->>Val: validate_investigation(result)
+    Val-->>UI: Verified findings + coverage + recommendations
 ```
 
-This is a conceptual sequence, not a fixed tool order. The agent dynamically selects from predefined tools using explicit schemas, records execution steps, observations, usage and completion status, and bounds requests and retries. Missing credentials, rate limits and network errors are handled explicitly. It does not execute model-generated Python or shell commands.
+---
 
-### Evidence model
+## Deterministic Analysis Tools
 
-- **Measured fact:** an observation backed by executed deterministic checks.
-- **Statistical candidate:** an evidence-backed statistical flag requiring contextual validation.
-- **AI interpretation:** model-generated synthesis, not independently verified numerical evidence.
-- **Cleaning recommendation:** advisory follow-up, not an executed cleaning operation.
+| Tool Name | Purpose | Inputs | Key Metrics & Statistical Definitions |
+| :--- | :--- | :--- | :--- |
+| `profile_dataset` | Structural & type summary | None | `row_count`, `column_count`, `missing_value_count`, `per_column` dtypes, `numerical_statistics`, `categorical_cardinality` |
+| `analyze_missing_values` | Missingness audit | None | `missing_counts`, `missing_percentages` (`missing / row_count * 100`), `rows_with_missing_count`, `fully_empty_columns`, `affected_row_positions` (max 10) |
+| `detect_duplicates` | Redundant row detection | `columns` (optional) | `duplicate_row_count` (`keep="first"` redundant rows), `duplicate_percentage`, `duplicate_group_row_count` (`keep=False`), bounded `evidence` |
+| `inspect_column` | Single-column deep check | `column` (required) | `inferred_dtype`, `unique_value_count`, `observed_python_types`, `mixed_types_detected`, `numeric_conversion_failure_count` |
+| `detect_outliers` | Conservative anomaly candidates | `column` (required), `method="iqr"` | `q1`, `q3`, `iqr`, `lower_bound` (`Q1 - 1.5*IQR`), `upper_bound` (`Q3 + 1.5*IQR`), `outlier_candidate_count` (requires >= 4 finite values; skipped if `IQR == 0`) |
 
-### Investigation outcomes
+---
 
-| Outcome | Interpretation |
-| --- | --- |
-| Verified findings | Executed checks support the displayed evidence. |
-| No issues in executed checks | No issues were found within the checks performed; not a guarantee of overall quality. |
-| Incomplete | Some analysis or evidence may be unavailable; review warnings. |
-| Failed | Investigation did not complete successfully; do not infer cleanliness. |
+## Evidence Validation & Reliability
 
-### Project structure
+- **Tool-Grounded Findings:** `validate_investigation()` derives findings solely from successful tool `metrics` and rejects unsupported or mismatched numerical claims in `validate_finding()`.
+- **Bounded Execution:** `InvestigationAgent` enforces `MAX_AGENT_TURNS = 8`, `MAX_AGENT_TOOL_CALLS = 8`, and stops on repeated identical tool calls.
+- **Allowlisting & Argument Validation:** `execute_tool()` validates tool names against the 5-tool `_DISPATCH` map, rejects unexpected parameters, and verifies column names against `context.dataframe.columns`.
+- **Groq Error Handling:** `GroqClient` enforces a `30.0s` timeout, `MAX_GROQ_RETRIES = 2` for rate limits/timeouts/connections/5xx errors, one lower-temperature recovery (`0.2`) for `invalid_tool_call` HTTP 400 errors, and classifies `context_size` / `authentication` failures without retrying.
+- **Honest Incomplete States:** Partial tool observations are preserved as `incomplete` if an agent loop hits limits or fails mid-run; failures are never masked as clean datasets.
+- **Stale State Invalidation:** Uploading or switching datasets assigns a new `dataset_id` and SHA-256 signature, clearing prior `investigation_result` and `report` state.
 
-```text
-datasleuth-ai/
-├── .streamlit/config.toml       # Native presentation theme
-├── app.py                      # Streamlit entry point and orchestration
-├── requirements.txt
-├── pyproject.toml
-├── .env.example                # Environment configuration template
-├── docs/
-├── src/datasleuth/
-│   ├── agent.py                # Investigation orchestration
-│   ├── groq_client.py          # LLM integration
-│   ├── data_loader.py          # CSV ingestion and validation
-│   ├── tools.py                # Deterministic analytical tools
-│   ├── validator.py            # Evidence verification
-│   ├── reports.py              # Report construction and serialization
-│   ├── models.py               # Core domain objects
-│   ├── config.py               # Application constraints
-│   ├── visualizations.py       # Plotly figures
-│   └── ui/
-│       ├── theme.py            # Design tokens and scoped styling
-│       ├── navigation.py       # Workspace navigation
-│       ├── formatters.py       # Display formatting
-│       ├── view_models.py      # Derived presentation metrics
-│       └── views/              # Seven dedicated workspace renderers
-└── tests/                      # Core and UI regression tests
-```
+> **Important Note:** Evidence validation guarantees that verified findings match executed tool outputs, but it does **not** eliminate all LLM interpretation errors in the narrative summary (`model_interpretation`), which is explicitly isolated and labeled as unverified.
 
-## Technology stack
+---
 
-| Technology | Role |
-| --- | --- |
-| Python | Application and investigation logic |
-| Streamlit | Responsive frontend, native widgets, and session state |
-| Pandas | CSV dataframes and deterministic profiling |
-| Plotly | Interactive analytical visualizations |
-| Groq Python SDK | LLM-assisted investigation orchestration |
-| python-dotenv | Local environment configuration |
-| Pytest / Streamlit AppTest | Core, presentation, and application regression tests |
-| Git / GitHub | Version control, isolated modernization branch, and pull request review |
+## Two Investigation Modes
 
-## Getting started
+| Feature | Guided Deterministic Investigation (Public Default) | Live AI Investigation (Optional) |
+| :--- | :--- | :--- |
+| **API Key Required** | **No** | Yes (`GROQ_API_KEY` server-side) |
+| **Tool Selection** | Predefined bounded local Python sequence | Autonomous Groq LLM (`openai/gpt-oss-20b`) |
+| **External Network Calls** | **Zero** | Bounded Groq Chat Completions API |
+| **Evidence Validation** | Full `validate_investigation()` pipeline | Full `validate_investigation()` pipeline |
+| **Model Narrative** | `None` (never fabricated) | Sanitized `model_interpretation` (labeled unverified) |
+| **Public Deployment Safety** | Unrestricted | Protected by `DATASLEUTH_PUBLIC_DEMO_MODE`, `MAX_SESSION_LIVE_RUNS = 5`, and `MAX_GLOBAL_LIVE_RUNS = 20` |
 
-### Prerequisites
+---
 
-- Python (the modernization was verified using Python 3.13.1).
-- Git and access to the repository if cloning it.
-- A Groq API key for live model-assisted investigations.
+## Data Privacy & Security
 
-### Installation
+- **Read-Only Source CSV:** Ingestion creates an in-memory Pandas DataFrame; the original file is never modified and no automatic data cleaning is performed.
+- **Secret Management:** `GROQ_API_KEY` is read strictly from server environment variables / `.env` (`load_dotenv(override=False)`) and is never rendered in UI, logs, or exported reports.
+- **Untrusted Data Isolation:** CSV cell values are treated as untrusted data, never agent instructions. Live AI prompts receive column names, dtypes, and bounded tool summaries rather than raw CSV dumps.
+- **Report Escaping:** `report_to_markdown()` escapes HTML and Markdown control characters (`<`, `>`, `` ` ``, `[`, `]`), and `sanitize_model_markdown()` strips unsafe HTML tags (`<script>`, `<iframe>`, etc.).
+- **Session Isolation:** Each Streamlit user session holds its own `st.session_state` with no shared database.
+- **Known Limitations:** Public deployments without a server-side `GROQ_API_KEY` (or with `DATASLEUTH_PUBLIC_DEMO_MODE=true`) operate in Guided Deterministic Mode only.
 
-```bash
-git clone https://github.com/aymenALa/datasleuth-ai.git
-cd datasleuth-ai
-python -m venv .venv
-```
+---
 
-Activate the virtual environment:
+## Technology Stack
+
+| Layer | Technology | Verified Version |
+| :--- | :--- | :--- |
+| **Runtime** | Python | `3.13.1` (`>=3.10` supported) |
+| **Data Engine** | Pandas / NumPy | `3.1.1` / `2.5.5` |
+| **Web Workspace** | Streamlit | `1.67.0` |
+| **Visualizations** | Plotly | `7.1.0` |
+| **LLM Integration** | Groq Python SDK | `1.7.0` |
+| **Configuration** | python-dotenv | `1.2.4` |
+| **Testing** | Pytest | `9.2.0` |
+
+---
+
+## Sample Dataset Library
+
+All five synthetic datasets are bundled in `data/samples/` and contain **no real personal information**:
+
+| Dataset | Filename | Dimensions | Included Data Quality Scenarios |
+| :--- | :--- | :--- | :--- |
+| **E-Commerce Orders** | `ecommerce_orders.csv` | `24 × 10` | Missing `customer_id`/`order_date`/`shipping_region`, duplicate order row, mixed `discount_pct` (`"none"`), `order_total` outliers |
+| **Customer Records** | `customer_records.csv` | `20 × 9` | Missing `account_tier`/`contact_channel`, duplicate row, mixed `age_years` (`"thirty"`), `lifetime_spend` outlier |
+| **Sales Transactions** | `sales_transactions.csv` | `18 × 9` | Missing `region`/`rep_code`, duplicate row, mixed `unit_price` (`"N/A"`), negative/extreme `units_sold` |
+| **Operational Metrics** | `operational_metrics.csv` | `16 × 8` | Missing `department`/`status_code`, duplicate log row, mixed `status_code` (`"unknown"`), `latency_ms` spike |
+| **Enterprise Invoice Ledger** | `enterprise_invoice_ledger.csv` | `2,000 × 10` | Reproducibly generated (`scripts/generate_sample_ledger.py`, `seed=42`) with missing `payment_date`/`region`/`customer_segment`, 30 duplicate rows, mixed `discount_rate`, and `invoice_amount` outliers |
+
+---
+
+## Installation & Configuration
+
+### Windows (PowerShell)
 
 ```powershell
-# Windows PowerShell
+git clone https://github.com/aymenALa/datasleuth-ai.git
+cd datasleuth-ai
+py -m venv .venv
 .\.venv\Scripts\Activate.ps1
-```
-
-```bash
-# macOS / Linux
-source .venv/bin/activate
-```
-
-Install project dependencies:
-
-```bash
 python -m pip install -r requirements.txt
 python -m pip install -e .
 ```
 
-Copy `.env.example` to a local `.env` file:
+### Linux / macOS
+
+```bash
+git clone https://github.com/aymenALa/datasleuth-ai.git
+cd datasleuth-ai
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+python -m pip install -e .
+```
+
+### Run in Guided Deterministic Mode (No API Key Required)
 
 ```powershell
-# Windows PowerShell (new setup only)
+streamlit run app.py
+```
+
+### Optional: Enable Local Live AI Mode (Groq)
+
+```powershell
 Copy-Item .env.example .env
+# Edit .env and set GROQ_API_KEY=your_local_key
+streamlit run app.py
 ```
 
-```bash
-# macOS / Linux (new setup only)
-cp .env.example .env
-```
-
-Do not overwrite an existing `.env`. Configure your own key if you intend to use the live Groq integration:
-
-```dotenv
-GROQ_API_KEY=your_own_key_here
-```
-
-Never commit your `.env` or real credentials.
-
-### Run the application
-
-```bash
-python -m streamlit run app.py
-```
-
-Open [http://localhost:8501](http://localhost:8501) in your browser. On Windows, the same command can be run without activating the environment:
+### Run Tests
 
 ```powershell
-.\.venv\Scripts\python.exe -m streamlit run app.py
+python -m pytest -v
 ```
-
-## Testing
-
-```bash
-python -c "import datasleuth"
-python -m pytest -q
-```
-
-If Windows temporary-directory permissions cause a fixture setup error, use an isolated writable temporary directory as in the project verification runs:
-
-```powershell
-$env:PYTHONPATH = "."
-.\.venv\Scripts\python.exe -m pytest -q --basetemp=.pytest_tmp -o cache_dir=.pytest_tmp/cache
-```
-
-Keep temporary test artifacts out of commits.
-
-```mermaid
-xychart-beta
-    title "Reported passing tests during modernization"
-    x-axis [Baseline, Initial-UI, Modular-UI, Final]
-    y-axis "Passing tests" 0 --> 120
-    bar [96, 96, 107, 110]
-```
-
-The final release-gate report recorded **110 passing tests in 6.84 seconds**, including 14 additional tests over the original baseline. Coverage includes CSV validation, inspection tools, agent behavior with mocked integrations, report generation, presentation formatting, and navigation lifecycle regressions. The reported test run preceded final formatting cleanup; it was not independently rerun for this README. Mocked tests do not establish live API connectivity.
-
-## Privacy and limitations
-
-- The source CSV is not automatically cleaned or overwritten. No domain-specific validity rules or automatic treatment execution are provided.
-- Local deterministic tools inspect the dataset. When Groq is used, investigation prompts, metadata, and bounded tool evidence (potentially including column names and sample cell values) may be transmitted to the API. Do not upload confidential or sensitive data without appropriate authorization.
-- The release report describes backend ingestion limits of **50 MB, 200,000 rows, and 100 columns**. A native upload widget may advertise a higher transport limit; the backend validation is authoritative.
-- Findings cover executed checks only. A failed or incomplete investigation does not establish that a dataset is clean.
-- Statistical outliers are candidates, not automatically errors. Recommendations require human judgment.
-- The application is session-oriented; persistent investigation history and automatic cleaning are outside the current scope.
-- Live model behavior and availability depend on the configured API credentials and provider.
-
-## Frontend modernization
-
-The application was modernized as part of **PROJECT UI LAB**, with a focus on improving real workflows rather than replacing the analytical engine.
-
-| Before | After |
-| --- | --- |
-| Long, single-page interface | Seven focused workspaces with functional sidebar navigation |
-| Inconsistent native and custom styling | Unified dark theme, aligned icons, and reusable presentation styling |
-| Basic dataset preview | Searchable schema, filters, and column quality indicators |
-| Mixed-unit issue donut | Independent missing-cell and duplicate-row indicators |
-| Raw technical output | Readable evidence cards with expandable original payloads |
-| Monolithic UI rendering | Modular UI views, formatters, and presentation models |
-| 96 baseline tests | 110 reported passing tests after modernization |
-
-The modernization used an isolated `ui-enhancement` branch, local regression testing, browser-based visual review, and a GitHub pull request. The release report identifies modernization commit [`6365bf7`](https://github.com/aymenALa/datasleuth-ai/commit/6365bf7f214a5ba332ac3d89bff5d1e36ea42e2b). The branch was subsequently merged into `main` according to the project owner. Core engine modules and dependencies were reported unchanged.
-
-## Future scope
-
-Potential extensions (not implemented features) include persistent investigation history, domain-specific validation rules, controlled cleaning workflows and support for larger datasets. These would require separate design and authorization; the current application remains a read-only CSV investigation tool.
 
 ---
 
-**DataSleuth AI — Inspect the evidence. Understand the risks. Decide before cleaning.**
+## Testing & Quality Assurance
+
+- **Automated Test Suite:** **117 / 117** Pytest tests passing across ingestion, deterministic tools, mocked agent orchestration, evidence validation, report escaping, Plotly visualizations, 5 sample datasets (including 2,000-row ledger), quota locks, and Streamlit `AppTest` navigation.
+- **Live Groq Integration Check:** Verified against `ecommerce_orders.csv` (`openai/gpt-oss-20b`): autonomous 5-step execution (`profile_dataset`, `analyze_missing_values`, `detect_duplicates`, `inspect_column`, `detect_outliers`), `completion_status="validated"`, `5` verified findings, `5` recommendations, `4,643` total tokens, valid JSON and Markdown exports.
+- **Real Browser QA (Headless Chrome CDP):** Verified desktop (`1440×900`), tablet (`768×1024`), and mobile (`390×844`) with `0px` horizontal overflow, `0` console/page errors, and real browser file downloads of `datasleuth-report.json` and `datasleuth-report.md`.
+
+---
+
+## Project Structure
+
+```text
+datasleuth-ai/
+├── .streamlit/
+│   └── config.toml                 # Midnight-cyan theme & 10 MB maxUploadSize
+├── data/samples/                   # 5 bundled synthetic CSV datasets
+├── docs/screenshots/               # Application screenshots for documentation
+├── scripts/
+│   └── generate_sample_ledger.py   # Reproducible 2,000-row CSV generator (seed=42)
+├── src/datasleuth/
+│   ├── agent.py                    # Bounded Groq tool-calling loop & dispatcher
+│   ├── config.py                   # Limits, model, temperature, retry & quota config
+│   ├── data_loader.py              # Validated UTF-8 CSV ingestion & DatasetContext
+│   ├── demo_runner.py              # Guided Deterministic Mode (no LLM)
+│   ├── groq_client.py              # Retry-bounded Groq SDK boundary & error diagnosis
+│   ├── models.py                   # Shared dataclasses (DatasetContext, ToolResult, etc.)
+│   ├── reports.py                  # Conservative recommendations, JSON & escaped Markdown
+│   ├── sample_datasets.py          # Synthetic sample registry & loader
+│   ├── tools.py                    # 5 deterministic, read-only Pandas/NumPy tools
+│   ├── validator.py                # Post-execution evidence validation gate
+│   ├── visualizations.py           # Deterministic Plotly charts
+│   └── ui/
+│       ├── brand.py                # Custom SVG logo & GitHub constants
+│       ├── formatters.py           # Precision formatting & HTML/Markdown sanitization
+│       ├── navigation.py           # Workspace sidebar & factual status pills
+│       ├── theme.py                # Midnight-cyan CSS design tokens & layout rules
+│       ├── view_models.py          # Presentation view models & KPI calculations
+│       └── views/                  # Landing, Onboarding, Overview, Explorer, Investigation,
+│                                   # Findings, Recommendations, Trace & Reports views
+├── tests/                          # 117-test Pytest suite
+├── app.py                          # Streamlit 3-stage entry point
+├── pyproject.toml                  # Package metadata
+└── requirements.txt                # Runtime & test dependencies
+```
+
+---
+
+## Deployment (Streamlit Community Cloud)
+
+DataSleuth AI is natively compatible with **Streamlit Community Cloud** at **$0/month**:
+
+- **Repository:** `aymenALa/datasleuth-ai`
+- **Branch:** `main`
+- **Main file path:** `app.py`
+- **Python version:** `3.11` or `3.12` (or `3.13`)
+- **Secrets:** Leave `GROQ_API_KEY` unset for a pure zero-cost public Guided Deterministic deployment (or set `DATASLEUTH_PUBLIC_DEMO_MODE = "true"` to lock Live AI Mode).
+
+Why native Streamlit hosting: DataSleuth's core value is genuine Python/Pandas computation and real-time Plotly/Streamlit state. Keeping a single-process Python deployment avoids split-service cold starts, CORS complexity, and paid backend infrastructure.
